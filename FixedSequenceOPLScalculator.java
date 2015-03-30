@@ -29,12 +29,25 @@ public class FixedSequenceOPLScalculator
      */
     public Peptide currentConformation;
 
-     
+    /** The current conformation's non-bonded energy (electrostatics + sterics) which is stored to find the energy change for a mutation */
+    public double currentNonBondedEnergy;
+
+    /** The previous conformation which allows for reversing mutations if they are rejected by the Monte Carlo process */
+    public Peptide previousConformation;
+ 
+    /** The previous conformation's non-bonded energy (electrostatics + sterics) which is stored to find the energy change for a mutation.
+     * It allows for reversal of mutations */
+    public double previousNonBondedEnergy;
+
     /** Creates an OPLScalculator for a Monte Carlo simulation
-     * */
+     * @param startingPeptide the initial peptide which will be minimized with a Monte Carlo process */
     public FixedSequenceOPLScalculator(Peptide startingPeptide)
     {
         // Call OPLS calculation in Tinker
+        TinkerJob initialEnergyCalculation = new TinkerJob(startingPeptide, Forcefield.OPLS, 1000, false, true, false, false, false);
+        TinkerJob.TinkerResult tinkerResult = initialEnergyCalculation.call();
+        this.currentConformation = tinkerResult.minimizedPeptide; 
+
         throw new IllegalArgumentException("not instantiable");
     }
 
