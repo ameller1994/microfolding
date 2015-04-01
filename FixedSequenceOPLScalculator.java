@@ -106,7 +106,7 @@ public class FixedSequenceOPLScalculator
         currentConformation = newConformation;
         currentNonBondedEnergy = currentNonBondedEnergy + energyChangeBetweenSegments; 
         
-        return totalEnergy;
+        return newPotentialEnergy;
     }
 
     /** Returns the change in energy between the current dihedral value and the new value
@@ -410,14 +410,35 @@ public class FixedSequenceOPLScalculator
     public static void main(String[] args)
     {
         // Create peptide
-
+        DatabaseLoader.go();
+        List<ProtoAminoAcid> sequence = ProtoAminoAcidDatabase.getSpecificSequence("arg","met","standard_ala","gly","d_proline", "gly", "phe", "val", "hd", "l_pro");
+        Peptide peptide = PeptideFactory.createPeptide(sequence);
+        
         // Create OPLS calculator
+        FixedSequenceOPLScalculator calculator = new FixedSequenceOPLScalculator(peptide);
 
         // Make a mutation
+        // Pick a random residue
+        Residue r = peptide.sequence.get(2);
+        ProtoTorsion phi = r.phi;
+        ProtoTorsion psi = r.psi;
+        // only mutate one value
+        double samePhiValue = phi.getDihedralAngle();
+        double newPsiValue = 175.0;
+        
+        Peptide newPeptide = BackboneMutator.setPhiPsi(peptide, r, samePhiValue, newPsiValue);
+        double calculatorPotentialEnergy = calculator.modifyDihedral(psi, newPsiValue, newPeptide);
 
         // Call Tinker on mutated peptide
+        TinkerAnalysisJob tinkerAnalysisJob = new TinkerAnalysisJob(newPeptide, Forcefield.OPLS);
+        TinkerAnalysisJob.TinkerAnalysisResult result = tinkerAnalysisJob.call();
+        TinkerAnalyzeOutputFile outputFile = result.tinkerAnalysisFile;
+        double tinkerPotentialEnergy = outputFile.totalEnergy;
 
         // Compare energy from Tinker with energy from OPLS calculator
-
+        if (calculatorPotentialEnergy == tinkerPotentialEnergy)
+            System.out.println("Success");
+        else
+            System.out.println("The tinker energy is : "  + tinkerPotentialEnergy + " and the calculator PE is : " + calculatorPotentialEnergy);
     }
 }
