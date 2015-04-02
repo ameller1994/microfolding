@@ -170,8 +170,14 @@ public class Settings implements Immutable, Singleton
                 TINKER_TARGET_DIRECTORY = WORKING_DIRECTORY + "tinker_jobs/";
                 TINKER_PROGRAM_DIRECTORY = "/Users/ekwan/tinker/bin/";
             }
+        /*else if ( HOSTNAME.equals("artur") )
+            {
+                TINKER_TARGET_DIRECTORY = WORKING_DIRECTORY + "tinker_jobs/";
+                System.out.println(TINKER_SETUP_DIRECTORY);
+                TINKER_PROGRAM_DIRECTORY = "/home/ameller/tinker/bin/";
+            }*/
         else
-            throw new IllegalArgumentException("recognized computer");
+            throw new IllegalArgumentException(HOSTNAME + " recognized computer");
         String runString = Settings.TINKER_SETUP_DIRECTORY + "tinker_setup.sh " + TINKER_TARGET_DIRECTORY + " "
                            + PROTOAMINOACID_DIRECTORY + " " + TINKER_SETUP_DIRECTORY + " " + TINKER_PROGRAM_DIRECTORY;
         try

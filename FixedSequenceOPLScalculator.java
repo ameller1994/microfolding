@@ -92,7 +92,20 @@ public class FixedSequenceOPLScalculator
         energyChange += energyChange + energyChangeBetweenSegments;
 
         // Find change in solvation energy
-        double newSolvationEnergy = currentConformation.energyBreakdown.solvationEnergy;
+        // Is there way to make this more efficient??? 
+        double solvationEnergy = 0.0;
+        List<Double> SASAlist = null;
+        try { SASAlist = new DCLMAreaCalculator(0.0).calculateSASA(newPeptide); }
+        catch (Exception e) { e.printStackTrace(); SASAlist = ShrakeRupleyCalculator.INSTANCE.calculateSASA(newPeptide); }
+        for (int i=0; i < SASAlist.size(); i++)
+        {
+            double surfaceArea = SASAlist.get(i);
+            double surfaceTension = peptide.contents.get(i).surfaceTension;
+            double energy = surfaceArea * surfaceTension;
+            //System.out.printf("%3d  %8.2f  %8.2f\n", i+1, surfaceArea, energy);
+            solvationEnergy += energy;
+        }
+        double newSolvationEnergy = solvationEnergy;
 
         // Find new energies
         double newPotentialEnergy = currentConformation.energyBreakdown.potentialEnergy + energyChange;
@@ -106,6 +119,7 @@ public class FixedSequenceOPLScalculator
         currentConformation = newConformation;
         currentNonBondedEnergy = currentNonBondedEnergy + energyChangeBetweenSegments; 
         
+        // NOTE THIS IS FOR TESTING
         return newPotentialEnergy;
     }
 
@@ -159,11 +173,21 @@ public class FixedSequenceOPLScalculator
         double newNonBondedEnergy = getNonBondedEnergy(newConformation);
         energyChange += (newNonBondedEnergy - currentNonBondedEnergy);
 
-        // calculate difference in solvation energy
-        // TO DO
-        double newSolvationEnergy = currentConformation.energyBreakdown.solvationEnergy;
+        // calculate new solvation energy        
+        double solvationEnergy = 0.0;
+        List<Double> SASAlist = null;
+        try { SASAlist = new DCLMAreaCalculator(0.0).calculateSASA(newPeptide); }
+        catch (Exception e) { e.printStackTrace(); SASAlist = ShrakeRupleyCalculator.INSTANCE.calculateSASA(newPeptide); }
+        for (int i=0; i < SASAlist.size(); i++)
+        {
+            double surfaceArea = SASAlist.get(i);
+            double surfaceTension = peptide.contents.get(i).surfaceTension;
+            double energy = surfaceArea * surfaceTension;
+            //System.out.printf("%3d  %8.2f  %8.2f\n", i+1, surfaceArea, energy);
+            solvationEnergy += energy;
+        }
+        double newSolvationEnergy = solvationEnergy;
 
-        
         // update energies and create new energy breakdown
         double newPotentialEnergy = currentConformation.energyBreakdown.potentialEnergy + energyChange;
         double newEnergy = newSolvationEnergy + newPotentialEnergy;

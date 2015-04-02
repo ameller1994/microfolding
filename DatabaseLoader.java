@@ -59,4 +59,9 @@ public class DatabaseLoader
                 GeneralThreadService.wait(100);
             }
     }
+
+    public static void main(String[] args)
+    {
+        DatabaseLoader.go();
+    }
 }
