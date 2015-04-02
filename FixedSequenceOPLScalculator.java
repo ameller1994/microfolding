@@ -93,7 +93,8 @@ public class FixedSequenceOPLScalculator
 
         // Find change in solvation energy
         // Is there way to make this more efficient??? 
-        double solvationEnergy = 0.0;
+        
+        /* double solvationEnergy = 0.0;
         List<Double> SASAlist = null;
         try { SASAlist = new DCLMAreaCalculator(0.0).calculateSASA(newPeptide); }
         catch (Exception e) { e.printStackTrace(); SASAlist = ShrakeRupleyCalculator.INSTANCE.calculateSASA(newPeptide); }
@@ -104,8 +105,8 @@ public class FixedSequenceOPLScalculator
             double energy = surfaceArea * surfaceTension;
             //System.out.printf("%3d  %8.2f  %8.2f\n", i+1, surfaceArea, energy);
             solvationEnergy += energy;
-        }
-        double newSolvationEnergy = solvationEnergy;
+        }*/
+        double newSolvationEnergy = 0.0; //solvationEnergy;
 
         // Find new energies
         double newPotentialEnergy = currentConformation.energyBreakdown.potentialEnergy + energyChange;
@@ -174,7 +175,7 @@ public class FixedSequenceOPLScalculator
         energyChange += (newNonBondedEnergy - currentNonBondedEnergy);
 
         // calculate new solvation energy        
-        double solvationEnergy = 0.0;
+        /*double solvationEnergy = 0.0;
         List<Double> SASAlist = null;
         try { SASAlist = new DCLMAreaCalculator(0.0).calculateSASA(newPeptide); }
         catch (Exception e) { e.printStackTrace(); SASAlist = ShrakeRupleyCalculator.INSTANCE.calculateSASA(newPeptide); }
@@ -185,8 +186,8 @@ public class FixedSequenceOPLScalculator
             double energy = surfaceArea * surfaceTension;
             //System.out.printf("%3d  %8.2f  %8.2f\n", i+1, surfaceArea, energy);
             solvationEnergy += energy;
-        }
-        double newSolvationEnergy = solvationEnergy;
+        } */
+        double newSolvationEnergy = 0.0; // solvationEnergy;
 
         // update energies and create new energy breakdown
         double newPotentialEnergy = currentConformation.energyBreakdown.potentialEnergy + energyChange;
