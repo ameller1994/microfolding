@@ -24,6 +24,15 @@ public class FixedSequenceOPLScalculator
     /** distances that are less than this value will be set to this value to avoid blowups */
     public static final double MIN_DISTANCE = 1.0;
 
+    /** electrostatic term that allows for quick computation of Coloumbic interaction. It is defined as k * q1 * q2 */
+    private double[][] electrostaticMultiple;
+
+    /** grouped term for VDW nonbonded energy term calculation. It is equal to epsilon * 4 * scaling. */
+    private double[][] VDWMultiple; 
+
+    /** sigma term for each pair of atoms in the peptide corresponding to this caluclator. Prevents look up each time */
+    private double[][] sigmas;
+    
     /** The current state of the peptide that corresponds to this calculator. 
      * Calculations of the energy change associated with a mutation will assume this is the previous state 
      */
@@ -44,10 +53,78 @@ public class FixedSequenceOPLScalculator
     public FixedSequenceOPLScalculator(Peptide startingPeptide)
     {
         // Call OPLS calculation in Tinker
-        TinkerJob initialEnergyCalculation = new TinkerJob(startingPeptide, Forcefield.OPLS, 1000, false, true, false, false, false);
-        TinkerJob.TinkerResult tinkerResult = initialEnergyCalculation.call();
-        this.currentConformation = tinkerResult.minimizedPeptide; 
-        this.currentNonBondedEnergy = getNonBondedEnergy(tinkerResult.minimizedPeptide);
+        TinkerAnalysisJob tinkerAnalysisJob = new TinkerAnalysisJob(startingPeptide, Forcefield.OPLS);
+        TinkerAnalysisJob.TinkerAnalysisResult result = tinkerAnalysisJob.call();
+        TinkerAnalyzeOutputFile outputFile = result.tinkerAnalysisFile;
+        double tinkerPotentialEnergy = outputFile.totalEnergy;
+        EnergyBreakdown energyBreakdown = new EnergyBreakdown(null, outputFile.totalEnergy, 0.0, outputFile.totalEnergy, null, Forcefield.OPLS);
+
+        // Populate arrays to speed up nonbonded energy calculation
+        int totalAtoms = startingPeptide.contents.size();
+        double[][] tempElectrostaticMultiple = new double[totalAtoms][totalAtoms];
+        double[][] tempVDWMultiple = new double[totalAtoms][totalAtoms];
+        double[][] tempSigmas = new double[totalAtoms][totalAtoms];
+        
+        // Loop through all atom pairs
+        for (int i = 0; i < totalAtoms; i++)
+        {
+            // Get atom type and class of atom1 
+            Integer atomType1 = startingPeptide.contents.get(i).type2;
+            Integer atomClass1 = getOPLSClass(atomType1);
+            double charge1 = getCharge(atomType1);
+            double vdw_distance1 = getVDWDistance(atomClass1);
+            double vdw_depth1 = getVDWDepth(atomClass1);
+            
+            /*
+            // designate size of array for this row
+            tempElectrostaticMultiple[i] = new double[totalAtoms - i];
+            tempVDWMultiple[i] = new double[totalAtoms - i]; 
+            tempSigmas[i] = new double[totalAtoms - i];
+            */
+
+            for (int j = i+1; j < totalAtoms; j++)
+            {
+                // Get atom type and class of atom2
+                Integer atomType2 = startingPeptide.contents.get(j).type2;
+                Integer atomClass2 = getOPLSClass(atomType2);
+                double charge2 = getCharge(atomType2);
+                double vdw_distance2 = getVDWDistance(atomClass2);
+                double vdw_depth2 = getVDWDepth(atomClass2);
+               
+                // calculate the graph-theoretic distance
+                Atom atom1 = startingPeptide.contents.get(i);
+                Atom atom2 = startingPeptide.contents.get(j);
+                DijkstraShortestPath<Atom,DefaultWeightedEdge> path = new DijkstraShortestPath<>(startingPeptide.connectivity, atom1, atom2, 3.0);
+                List<DefaultWeightedEdge> pathEdges = path.getPathEdgeList();
+
+                // scale 1,4-interactions by 50%
+                double scaling = 1.0;
+                if ( pathEdges != null && pathEdges.size() < 3 )
+                    continue;
+                else if ( pathEdges != null && pathEdges.size() == 3 )
+                    scaling = 0.5;
+    
+                double sigma = vdw_distance1;
+                double epsilon = vdw_depth1;
+
+                if ( atomClass1 != atomClass2)
+                {
+                    sigma = Math.sqrt(vdw_distance1 * vdw_distance2);
+                    epsilon = Math.sqrt(vdw_depth1 * vdw_depth2);
+                }
+
+                // populate arrays with pre-calculated values
+                tempVDWMultiple[i][j] = 4.0 * scaling * epsilon;
+                tempSigmas[i][j] = sigma;
+                tempElectrostaticMultiple[i][j] = scaling * charge1 * charge2 * COULOMB_CONSTANT; 
+            }
+        }
+        this.VDWMultiple = tempVDWMultiple;
+        this.sigmas = tempSigmas;
+        this.electrostaticMultiple = tempElectrostaticMultiple;
+
+        this.currentConformation = startingPeptide.setEnergyBreakdown(energyBreakdown);
+        this.currentNonBondedEnergy = getNonBondedEnergy(startingPeptide);
         this.previousConformation = null;
         this.previousNonBondedEnergy = 0.0;
     }
@@ -124,34 +201,32 @@ public class FixedSequenceOPLScalculator
         return newPotentialEnergy;
     }
 
-    /** Returns the change in energy between the current dihedral value and the new value
-     * This method queries the OPLS forcefield and finds the energy for the current conformation's dihedral and the new value's energy.
+    /** Returns the energy of a dihedral angle 
+     * This method queries the OPLS forcefield and calculates the dihedral energy based on the OPLS force field.
      * This method uses the formula E = sigma( Vi/2*(1+cos(Per_i*(phi - Phase_i))) ) where V is the amplitude, Per is the periodicity.
-     * @param protoTorsion the proto torsion that is being mutated
-     * @param newValue the new value for the proto tosion
-     * @retun the energy change in the dihedral between the previous value and the updated value
+     * @param protoTorsion the proto torsion of interest
+     * @retun the energy value in the OPLS molecular mechanics force field energy calculation
      */
-    private double getEnergyChangeInDihedral(ProtoTorsion protoTorsion, double newValue)
+    private double getDihedralEnergy(ProtoTorsion protoTorsion)
     {
         // Get torsional parameters for the proto torsion
         List<Integer> atomClasses = new LinkedList<>();
         atomClasses.add(getOPLSClass(protoTorsion.atom1.type2));
-        atomClasses.add(OPLSforcefield.CLASS_MAP.get(protoTorsion.atom2.type2));
-        atomClasses.add(OPLSforcefield.CLASS_MAP.get(protoTorsion.atom3.type2));
-        atomClasses.add(OPLSforcefield.CLASS_MAP.get(protoTorsion.atom4.type2));
+        atomClasses.add(getOPLSClass(protoTorsion.atom2.type2));
+        atomClasses.add(getOPLSClass(protoTorsion.atom3.type2));
+        atomClasses.add(getOPLSClass(protoTorsion.atom4.type2));
         OPLSforcefield.TorsionalParameter torsionalParameter = OPLSforcefield.TORSIONAL_MAP.get(atomClasses);
 
         // Perform calculation of energy change using the formula: E = sigma( Vi/2*(1+cos(Per_i*(phi - Phase_i)) )) where V is the amplitude, Per is the periodicity.
-        double oldValue = protoTorsion.getDihedralAngle();
-        double energyChange = 0.0;
+        double angle = protoTorsion.getDihedralAngle();
+        double dihedralEnergy = 0.0;
         for (int i = 0; i < torsionalParameter.periodicity.size(); i++)
         {
-            double E_i_old = torsionalParameter.amplitudes.get(i) / 2 * (1 + Math.cos(torsionalParameter.periodicity.get(i) * (oldValue - torsionalParameter.phase.get(i))));  
-            double E_i_new = torsionalParameter.amplitudes.get(i) / 2 * (1 + Math.cos(torsionalParameter.periodicity.get(i) * (newValue - torsionalParameter.phase.get(i))));  
-            energyChange = energyChange + (E_i_new - E_i_old);
-        }
+            double E_i = torsionalParameter.amplitudes.get(i) / 2 * (1 + Math.cos(torsionalParameter.periodicity.get(i) * (angle - torsionalParameter.phase.get(i))));  
+            dihedralEnergy += E_i;
+       }
 
-        return energyChange;
+        return dihedralEnergy;
 
     }
 
