@@ -165,8 +165,18 @@ public class OPLSforcefield implements Singleton
             this.amplitudes = ImmutableList.copyOf(amplitudes);
             this.phase = ImmutableList.copyOf(phase);
         }
-    }
 
+        @Override
+        public String toString()
+        {
+            String returnString = "Torsional parameter: \n";
+            for (int i = 0; i < periodicity.size(); i++)
+            {
+                returnString = returnString + "P: " + periodicity.get(i) + " A: " + amplitudes.get(i) + " Ph: " + phase.get(i) + "\n";  
+            }
+            return returnString;
+        }
+    }
 
     /** Forces the database to load. */
     public static void load()

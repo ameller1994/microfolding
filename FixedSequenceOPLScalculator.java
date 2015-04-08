@@ -223,6 +223,9 @@ public class FixedSequenceOPLScalculator
         // Perform calculation of energy change using the formula: E = sigma( Vi/2*(1+cos(Per_i*(phi - Phase_i)) )) where V is the amplitude, Per is the periodicity.
         double angle = protoTorsion.getDihedralAngle();
         double dihedralEnergy = 0.0;
+        System.out.println(torsionalParameter);
+        System.out.println(torsionalParameter.periodicity);
+        //System.out.println("The number of elements is : " + torsionalParameter.periodicity == null ? 0 : torsionalParameter.periodicity.size());
         for (int i = 0; i < torsionalParameter.periodicity.size(); i++)
         {
             double E_i = torsionalParameter.amplitudes.get(i) / 2 * (1 + Math.cos(torsionalParameter.periodicity.get(i) * (angle - torsionalParameter.phase.get(i))));  
