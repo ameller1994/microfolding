@@ -360,18 +360,34 @@ public class FixedSequenceOPLScalculator
  
     /**
      * Computes the non-bonded OPLS energy in a molecule between all atom pairs.
-     * @param molecule the molecule to analyze
+     * @param conformation the molecule to analyze
      * @return the non-bonded energy calculated on the OPLS force field
      */
-    public static double getNonBondedEnergy(Molecule molecule)
+    public double getNonBondedEnergy(Peptide conformation)
     {
-        List<Interaction> interactions = getInteractions(molecule);
-        double energy = 0.0;
-        for (Interaction i : interactions)
+        int totalAtoms = conformation.contents.size();
+        double nonBondedEnergy = 0.0;
+        for (int i = 0; i < totalAtoms; i++)
         {
-            energy += i.interactionEnergy;
+            for (int j = i+1; j < totalAtoms; j++)
+            {
+                Atom atom1 = conformation.contents.get(i);
+                Atom atom2 = conformation.contents.get(j);
+                double distance = Vector3D.distance(atom1.position, atom2.position);
+                
+                // avoid blowing up the energy
+                if ( distance < MIN_DISTANCE )
+                    distance = MIN_DISTANCE;
+                
+                double electrostatic = electrostaticMultiple[i][j] / (distance * distance); 
+                double temp = Math.pow(sigmas[i][j] / distance, 6);
+                double steric = VDWMultiple[i][j] * temp * (temp - 1);
+                
+                // scaling is already included in the electrostatic and steric terms
+                nonBondedEnergy += (electrostatic + steric);
+            }
         }
-        return energy;
+        return nonBondedEnergy; 
     }
 
     /**
