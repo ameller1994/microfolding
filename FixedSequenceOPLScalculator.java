@@ -129,6 +129,7 @@ public class FixedSequenceOPLScalculator
         this.previousNonBondedEnergy = 0.0;
     }
 
+    
     /** Calculates the energy of the peptide for a dihedral angle change. 
      * This method queries the OPLS forcefield for the dihedral's corresponding OPLS parameters. 
      * It finds the energy change of a dihedral change and also the resulting change in steric and electrostatic energies 
@@ -137,6 +138,7 @@ public class FixedSequenceOPLScalculator
      * @param newConformation the mutated peptide
      * @return the energy of the new confirmation 
      */
+    /*
     public double modifyDihedral(ProtoTorsion protoTorsion, Double newValue, Peptide newConformation)
     {
         // Get energy change assocaited with dihedral change
@@ -182,7 +184,7 @@ public class FixedSequenceOPLScalculator
             double energy = surfaceArea * surfaceTension;
             //System.out.printf("%3d  %8.2f  %8.2f\n", i+1, surfaceArea, energy);
             solvationEnergy += energy;
-        }*/
+        }
         double newSolvationEnergy = 0.0; //solvationEnergy;
 
         // Find new energies
@@ -200,6 +202,7 @@ public class FixedSequenceOPLScalculator
         // NOTE THIS IS FOR TESTING
         return newPotentialEnergy;
     }
+    /*
 
     /** Returns the energy of a dihedral angle 
      * This method queries the OPLS forcefield and calculates the dihedral energy based on the OPLS force field.
@@ -207,7 +210,7 @@ public class FixedSequenceOPLScalculator
      * @param protoTorsion the proto torsion of interest
      * @retun the energy value in the OPLS molecular mechanics force field energy calculation
      */
-    private double getDihedralEnergy(ProtoTorsion protoTorsion)
+    public double getDihedralEnergy(ProtoTorsion protoTorsion)
     {
         // Get torsional parameters for the proto torsion
         List<Integer> atomClasses = new LinkedList<>();
@@ -230,55 +233,7 @@ public class FixedSequenceOPLScalculator
 
     }
 
-    /** Returns the energy of a new conformation following a set of dihedral changes and rotamer packing. 
-     * This method is meant to calculate the energy change for a fragment insertion or a fragment generation muation
-     * It finds the energy change in each of the dihedral angles and the steric and electrostatic energy change
-     * @param protoTosions the dihedral angles that are being modified within the current conformation
-     * @param newValues the new values for the dihedrals. This list should be parallel to the list of dihedrals.
-     * @param newConformation the conformation after rotamer packing which will be used to calculate new nonbonded energies
-     */
-    private double makeMutation(List<ProtoTorsion> protoTorsions, List<Double> newValues, Peptide newConformation)
-    {
-        // find change in dihedral energies
-        double energyChange = 0.0;
-        for (int i = 0; i < protoTorsions.size(); i++)
-            energyChange += getEnergyChangeInDihedral(protoTorsions.get(i), newValues.get(i));
-        
-
-        // calculate steric and electrostatic energy change for entire molecule
-        double newNonBondedEnergy = getNonBondedEnergy(newConformation);
-        energyChange += (newNonBondedEnergy - currentNonBondedEnergy);
-
-        // calculate new solvation energy        
-        /*double solvationEnergy = 0.0;
-        List<Double> SASAlist = null;
-        try { SASAlist = new DCLMAreaCalculator(0.0).calculateSASA(newPeptide); }
-        catch (Exception e) { e.printStackTrace(); SASAlist = ShrakeRupleyCalculator.INSTANCE.calculateSASA(newPeptide); }
-        for (int i=0; i < SASAlist.size(); i++)
-        {
-            double surfaceArea = SASAlist.get(i);
-            double surfaceTension = peptide.contents.get(i).surfaceTension;
-            double energy = surfaceArea * surfaceTension;
-            //System.out.printf("%3d  %8.2f  %8.2f\n", i+1, surfaceArea, energy);
-            solvationEnergy += energy;
-        } */
-        double newSolvationEnergy = 0.0; // solvationEnergy;
-
-        // update energies and create new energy breakdown
-        double newPotentialEnergy = currentConformation.energyBreakdown.potentialEnergy + energyChange;
-        double newEnergy = newSolvationEnergy + newPotentialEnergy;
-        EnergyBreakdown newEnergyBreakdown = new EnergyBreakdown(null, newEnergy, newSolvationEnergy, newPotentialEnergy, null, Forcefield.OPLS); 
-        newConformation = currentConformation.setEnergyBreakdown(newEnergyBreakdown);
-
-        // update conformations 
-        previousConformation = currentConformation;
-        previousNonBondedEnergy = currentNonBondedEnergy;
-        currentConformation = newConformation;
-        currentNonBondedEnergy = newNonBondedEnergy; 
-        
-        return newEnergy;
-    }
-    
+            
     /** A method that returns to the state before the last mutation. 
     * This is useful because we can calculate an energy for a potential Monte Carlo move, reject the change, and then revert to the state before the change.
     */
@@ -533,28 +488,5 @@ public class FixedSequenceOPLScalculator
         // Create OPLS calculator
         FixedSequenceOPLScalculator calculator = new FixedSequenceOPLScalculator(peptide);
 
-        // Make a mutation
-        // Pick a random residue
-        Residue r = peptide.sequence.get(2);
-        ProtoTorsion phi = r.phi;
-        ProtoTorsion psi = r.psi;
-        // only mutate one value
-        double samePhiValue = phi.getDihedralAngle();
-        double newPsiValue = 175.0;
-        
-        Peptide newPeptide = BackboneMutator.setPhiPsi(peptide, r, samePhiValue, newPsiValue);
-        double calculatorPotentialEnergy = calculator.modifyDihedral(psi, newPsiValue, newPeptide);
-
-        // Call Tinker on mutated peptide
-        TinkerAnalysisJob tinkerAnalysisJob = new TinkerAnalysisJob(newPeptide, Forcefield.OPLS);
-        TinkerAnalysisJob.TinkerAnalysisResult result = tinkerAnalysisJob.call();
-        TinkerAnalyzeOutputFile outputFile = result.tinkerAnalysisFile;
-        double tinkerPotentialEnergy = outputFile.totalEnergy;
-
-        // Compare energy from Tinker with energy from OPLS calculator
-        if (calculatorPotentialEnergy == tinkerPotentialEnergy)
-            System.out.println("Success");
-        else
-            System.out.println("The tinker energy is : "  + tinkerPotentialEnergy + " and the calculator PE is : " + calculatorPotentialEnergy);
-    }
+   }
 }

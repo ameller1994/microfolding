@@ -37,7 +37,7 @@ public class FragmentGenerationOPLScalculator extends FixedSequenceOPLScalculato
         }
 
         this.currentSidechainTorsionalEnergy = tempTorsionalEnergy;
-        this.previousSidechainTorsionEnergy = 0.0;
+        this.previousSidechainTorsionalEnergy = 0.0;
     }
 
     /** A method that returns to the state before the last mutation. 
@@ -55,7 +55,7 @@ public class FragmentGenerationOPLScalculator extends FixedSequenceOPLScalculato
      * @param mutatedResidue the residue whose backbone angles are being changed
      * @return the energy of the new conformation in the OPLS force field 
      */
-    public double makeMutation(Residue mutatedResidue, Peptide newConformation)
+    public double calculateEnergy(Residue mutatedResidue, Peptide newConformation)
     {
         double energyChange = 0.0;
         // Find energy change in dihedrals of mutatedResidue
@@ -69,7 +69,7 @@ public class FragmentGenerationOPLScalculator extends FixedSequenceOPLScalculato
         energyChange += (getDihedralEnergy(newPsi) - getDihedralEnergy(oldPsi));
 
         ProtoTorsion newOmega = mutatedResidue.omega;
-        ProtoTorsion oldOmega = previousResidue.omga;
+        ProtoTorsion oldOmega = previousResidue.omega;
         energyChange += (getDihedralEnergy(newOmega) - getDihedralEnergy(oldOmega));
 
         // Find energy change in all chis that are changed as a result of rotamer packing
@@ -96,11 +96,45 @@ public class FragmentGenerationOPLScalculator extends FixedSequenceOPLScalculato
         previousConformation = currentConformation;
         previousNonBondedEnergy = currentNonBondedEnergy;
         currentConformation = newConformation;
-        currentNonBondedEnergy = currentNonBondedEnergy + energyChangeBetweenSegments; 
+        currentNonBondedEnergy = newNonBondedEnergy; 
         // update torsional energy
-
-
+        previousSidechainTorsionalEnergy = currentSidechainTorsionalEnergy;
+        currentSidechainTorsionalEnergy = newSidechainTorsionalEnergy;
+        
+        return newEnergy;
     }
+    
+    public static void main(String[] args)
+    {
+        // Create peptide
+        DatabaseLoader.go();
+        List<ProtoAminoAcid> sequence = ProtoAminoAcidDatabase.getSpecificSequence("arg","met","standard_ala","gly","d_proline", "gly", "phe", "val", "hd", "l_pro");
+        Peptide peptide = PeptideFactory.createPeptide(sequence);
+        
+        // Create OPLS calculator
+        FragmentGenerationOPLScalculator calculator = new FragmentGenerationOPLScalculator(peptide);
 
+        // Make a mutation
+        // Pick a random residue and change omega, phi, psi
+        int residueNumber = 2;
+        peptide = BackboneMutator.mutateOmega(peptide, residueNumber);
+        Peptide newPeptide = BackboneMutator.mutatePhiPsi(peptide, residueNumber);
+       
+        // Change chis -- rotamer pack (to add)
+
+        double calculatorPotentialEnergy = calculator.calculateEnergy(newPeptide.sequence.get(residueNumber), newPeptide);
+
+        // Call Tinker on mutated peptide
+        TinkerAnalysisJob tinkerAnalysisJob = new TinkerAnalysisJob(newPeptide, Forcefield.OPLS);
+        TinkerAnalysisJob.TinkerAnalysisResult result = tinkerAnalysisJob.call();
+        TinkerAnalyzeOutputFile outputFile = result.tinkerAnalysisFile;
+        double tinkerPotentialEnergy = outputFile.totalEnergy;
+
+        // Compare energy from Tinker with energy from OPLS calculator
+        if (calculatorPotentialEnergy == tinkerPotentialEnergy)
+            System.out.println("Success");
+        else
+            System.out.println("The tinker energy is : "  + tinkerPotentialEnergy + " and the calculator PE is : " + calculatorPotentialEnergy);
+    }
 }
   
