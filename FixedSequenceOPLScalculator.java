@@ -219,11 +219,18 @@ public class FixedSequenceOPLScalculator
         atomClasses.add(getOPLSClass(protoTorsion.atom3.type2));
         atomClasses.add(getOPLSClass(protoTorsion.atom4.type2));
         OPLSforcefield.TorsionalParameter torsionalParameter = OPLSforcefield.TORSIONAL_MAP.get(atomClasses);
+        if ( torsionalParameter == null )
+            throw new NullPointerException("can't find torsional parameter for classes " + atomClasses.toString());
 
         // Perform calculation of energy change using the formula: E = sigma( Vi/2*(1+cos(Per_i*(phi - Phase_i)) )) where V is the amplitude, Per is the periodicity.
         double angle = protoTorsion.getDihedralAngle();
         double dihedralEnergy = 0.0;
         System.out.println(torsionalParameter);
+        System.out.println("a");
+        System.out.println(torsionalParameter.amplitudes);
+        System.out.println("b");
+        System.out.println(torsionalParameter.phase);
+        System.out.println("c");
         System.out.println(torsionalParameter.periodicity);
         //System.out.println("The number of elements is : " + torsionalParameter.periodicity == null ? 0 : torsionalParameter.periodicity.size());
         for (int i = 0; i < torsionalParameter.periodicity.size(); i++)
