@@ -95,9 +95,11 @@ public class OPLSforcefield implements Singleton
                             atomClasses.add(Integer.valueOf(fields.get(3)));
                             atomClasses.add(Integer.valueOf(fields.get(4)));
 
+                            if (atomClasses.get(0) == 1 && atomClasses.get(1) == 1 && atomClasses.get(2) == 77 && atomClasses.get(3) == 1)
+                                System.out.println("Finds relevant dihedral");
+
                             // differing lengths are possible for the torsion parameter data 
                             List<Integer> periodicity = new LinkedList<>();
-                            List<Double> phases = new LinkedList<>();
                             List<Double> amplitudes = new LinkedList<>();
                             for (int i = 5; i < fields.size(); i = i+3) 
                             {
@@ -105,7 +107,6 @@ public class OPLSforcefield implements Singleton
                                 if (fields.get(i).equals("#"))
                                     break;
                                 amplitudes.add(Double.valueOf(fields.get(i)));
-                                phases.add(Double.valueOf(fields.get(i+1)));
                                 periodicity.add(Integer.valueOf(fields.get(i+2)));
 
                             }
@@ -115,10 +116,9 @@ public class OPLSforcefield implements Singleton
                             {
                                 periodicity.add(1);
                                 amplitudes.add(0.0);
-                                phases.add(0.0);
                             }
 
-                            TorsionalParameter torsionalParameter = new TorsionalParameter(periodicity, amplitudes, phases);
+                            TorsionalParameter torsionalParameter = new TorsionalParameter(periodicity, amplitudes);
                             tempTorsionalMap.put(atomClasses, torsionalParameter);
 
                             //note there is one duplicate value in the OPLS parameter file
@@ -152,18 +152,16 @@ public class OPLSforcefield implements Singleton
         /** The amplitudes for a Fourier term */
         public final List<Double> amplitudes;
 
-        /** The natural phase of a Fourier term */
-        public final List<Double> phase; 
-
-        /** Constructor that assumes user passes in parallel lists of torsional parameter terms. */ 
-        public TorsionalParameter(List<Integer> periodicity, List<Double> amplitudes, List<Double> phase)
+        /** Constructor that assumes user passes in parallel lists of torsional parameter terms. 
+         * Note that the phase for all odd terms is assumed to be 0.0 degrees and the phase for even terms is 180.0 
+         */ 
+        public TorsionalParameter(List<Integer> periodicity, List<Double> amplitudes)
         {
-            if (periodicity.size() != amplitudes.size() || periodicity.size() != phase.size())
+            if (periodicity.size() != amplitudes.size())
                 throw new IllegalArgumentException("Input lists do not match in size");
         
             this.periodicity = ImmutableList.copyOf(periodicity);
             this.amplitudes = ImmutableList.copyOf(amplitudes);
-            this.phase = ImmutableList.copyOf(phase);
         }
 
         @Override
@@ -172,7 +170,10 @@ public class OPLSforcefield implements Singleton
             String returnString = "Torsional parameter: \n";
             for (int i = 0; i < periodicity.size(); i++)
             {
-                returnString = returnString + "P: " + periodicity.get(i) + " A: " + amplitudes.get(i) + " Ph: " + phase.get(i) + "\n";  
+                double phase = 0.0;
+                if (periodicity.get(i) % 2 == 0)
+                    phase = 180.0;
+                returnString = returnString + "P: " + periodicity.get(i) + " A: " + amplitudes.get(i) + " Ph: " + phase + "\n";  
             }
             return returnString;
         }
@@ -191,5 +192,18 @@ public class OPLSforcefield implements Singleton
     public static void main(String[] args)
     {
         load();
+        // Test for specific values
+        int class1 = 1;
+        int class2 = 77;
+        int class3 = 1;
+        int class4 = 1;
+        List<Integer> atomClasses =  new LinkedList<>();
+        atomClasses.add(class1);
+        atomClasses.add(class2);
+        atomClasses.add(class3);
+        atomClasses.add(class4);
+
+        TorsionalParameter torsionalParameter = TORSIONAL_MAP.get(atomClasses);
+        System.out.println(torsionalParameter);
     }
 } 

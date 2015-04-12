@@ -212,30 +212,19 @@ public class FixedSequenceOPLScalculator
      */
     public double getDihedralEnergy(ProtoTorsion protoTorsion)
     {
-        // Get torsional parameters for the proto torsion
-        List<Integer> atomClasses = new LinkedList<>();
-        atomClasses.add(getOPLSClass(protoTorsion.atom1.type2));
-        atomClasses.add(getOPLSClass(protoTorsion.atom2.type2));
-        atomClasses.add(getOPLSClass(protoTorsion.atom3.type2));
-        atomClasses.add(getOPLSClass(protoTorsion.atom4.type2));
-        OPLSforcefield.TorsionalParameter torsionalParameter = OPLSforcefield.TORSIONAL_MAP.get(atomClasses);
-        if ( torsionalParameter == null )
-            throw new NullPointerException("can't find torsional parameter for classes " + atomClasses.toString());
-
-        // Perform calculation of energy change using the formula: E = sigma( Vi/2*(1+cos(Per_i*(phi - Phase_i)) )) where V is the amplitude, Per is the periodicity.
+        OPLSforcefield.TorsionalParameter torsionalParameter = getTorsionalParameter(protoTorsion);
+        
+        // Perform calculation of energy change using the formula: E = sigma( Vi/2*(1+cos(Per_i*(phi - Phase_i)) ))
+        // where V is the amplitude, Per is the periodicity.
         double angle = protoTorsion.getDihedralAngle();
         double dihedralEnergy = 0.0;
-        System.out.println(torsionalParameter);
-        System.out.println("a");
-        System.out.println(torsionalParameter.amplitudes);
-        System.out.println("b");
-        System.out.println(torsionalParameter.phase);
-        System.out.println("c");
-        System.out.println(torsionalParameter.periodicity);
-        //System.out.println("The number of elements is : " + torsionalParameter.periodicity == null ? 0 : torsionalParameter.periodicity.size());
         for (int i = 0; i < torsionalParameter.periodicity.size(); i++)
         {
-            double E_i = torsionalParameter.amplitudes.get(i) / 2 * (1 + Math.cos(torsionalParameter.periodicity.get(i) * (angle - torsionalParameter.phase.get(i))));  
+            double phase = 0.0;
+            // Even terms will have phase of 180.0
+            if (torsionalParameter.periodicity.get(i) % 2 == 0)
+                phase = 180.0;
+            double E_i = torsionalParameter.amplitudes.get(i) / 2 * (1 + Math.cos(torsionalParameter.periodicity.get(i) * (angle - phase)));  
             dihedralEnergy += E_i;
        }
 
@@ -435,6 +424,31 @@ public class FixedSequenceOPLScalculator
         return ImmutableList.copyOf(interactions);
     }
     
+    /**
+     * Gets the torsional parameter corresponding to the input atom classes. 
+     * This method ensures that proto torsions with ac1-ac2-ac3-ac4 are also searched in the opposite order of atom classes.
+     * @param protoTorsion a proto torsion whose torsional parameters will be queried
+     * @return a OPLSforcefield TorsionalParameter object containing the amplitude and periodicity corresponding to the torsion
+    */
+    public OPLSforcefield.TorsionalParameter getTorsionalParameter(ProtoTorsion protoTorsion)
+    {
+        // Get atom classes for the proto torsion
+        List<Integer> atomClasses = new LinkedList<>();
+        atomClasses.add(getOPLSClass(protoTorsion.atom1.type2));
+        atomClasses.add(getOPLSClass(protoTorsion.atom2.type2));
+        atomClasses.add(getOPLSClass(protoTorsion.atom3.type2));
+        atomClasses.add(getOPLSClass(protoTorsion.atom4.type2));
+        OPLSforcefield.TorsionalParameter torsionalParameter = OPLSforcefield.TORSIONAL_MAP.get(atomClasses);
+        if (torsionalParameter == null)
+        {
+            // Reverse atom class list and query again
+            List<Integer> atomClassesReversed = Lists.reverse(atomClasses);
+            torsionalParameter = OPLSforcefield.TORSIONAL_MAP.get(atomClassesReversed);
+            if (torsionalParameter == null)
+                throw new NullPointerException("Undefined torsional parameter for classes: " + atomClasses.toString());
+        }
+        return torsionalParameter;
+    }
 
     /**
      * Gets the OPLS partial charge.
