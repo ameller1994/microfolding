@@ -111,6 +111,9 @@ public class FragmentGenerationOPLScalculator extends FixedSequenceOPLScalculato
         List<ProtoAminoAcid> sequence = ProtoAminoAcidDatabase.getSpecificSequence("arg","met","standard_ala","gly","d_proline", "gly", "phe", "val", "hd", "l_pro");
         Peptide peptide = PeptideFactory.createPeptide(sequence);
         
+        TinkerXYZInputFile tinkerTest = new TinkerXYZInputFile(peptide, Forcefield.OPLS);
+        tinkerTest.write("test/original_peptide.xyz");
+
         // Create OPLS calculator
         FragmentGenerationOPLScalculator calculator = new FragmentGenerationOPLScalculator(peptide);
 
@@ -123,12 +126,16 @@ public class FragmentGenerationOPLScalculator extends FixedSequenceOPLScalculato
         // Change chis -- rotamer pack (to add)
 
         double calculatorPotentialEnergy = calculator.calculateEnergy(newPeptide.sequence.get(residueNumber), newPeptide);
+        System.out.println("New nonbonded energy is: " + calculator.currentNonBondedEnergy);
 
         // Call Tinker on mutated peptide
         TinkerAnalysisJob tinkerAnalysisJob = new TinkerAnalysisJob(newPeptide, Forcefield.OPLS);
         TinkerAnalysisJob.TinkerAnalysisResult result = tinkerAnalysisJob.call();
         TinkerAnalyzeOutputFile outputFile = result.tinkerAnalysisFile;
         double tinkerPotentialEnergy = outputFile.totalEnergy;
+        
+        TinkerXYZInputFile mutated = new TinkerXYZInputFile(newPeptide, Forcefield.OPLS);
+        mutated.write("test/mutated_peptide.xyz");
 
         // Compare energy from Tinker with energy from OPLS calculator
         if (calculatorPotentialEnergy == tinkerPotentialEnergy)
