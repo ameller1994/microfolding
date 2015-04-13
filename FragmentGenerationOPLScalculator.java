@@ -72,6 +72,8 @@ public class FragmentGenerationOPLScalculator extends FixedSequenceOPLScalculato
         ProtoTorsion oldOmega = previousResidue.omega;
         energyChange += (getDihedralEnergy(newOmega) - getDihedralEnergy(oldOmega));
 
+        System.out.println("Before chi energy calculations the energy change is: " + energyChange);
+
         // Find energy change in all chis that are changed as a result of rotamer packing
         double newSidechainTorsionalEnergy = 0.0;
         for (Residue r : newConformation.sequence)
@@ -80,6 +82,9 @@ public class FragmentGenerationOPLScalculator extends FixedSequenceOPLScalculato
                 newSidechainTorsionalEnergy += getDihedralEnergy(chi);
         }
         energyChange += (newSidechainTorsionalEnergy - currentSidechainTorsionalEnergy);
+        
+        // For debugging
+        System.out.println("The torsional energy change is " + energyChange);
 
         // Recalculate the non bonded energy
         double newNonBondedEnergy = getNonBondedEnergy(newConformation);
@@ -113,6 +118,8 @@ public class FragmentGenerationOPLScalculator extends FixedSequenceOPLScalculato
         
         TinkerXYZInputFile tinkerTest = new TinkerXYZInputFile(peptide, Forcefield.OPLS);
         tinkerTest.write("test/original_peptide.xyz");
+        // write method to find non bonded energy terms, torsional energy, and all other terms summed
+        // add to TinkerAnalysis
 
         // Create OPLS calculator
         FragmentGenerationOPLScalculator calculator = new FragmentGenerationOPLScalculator(peptide);
@@ -136,6 +143,7 @@ public class FragmentGenerationOPLScalculator extends FixedSequenceOPLScalculato
         
         TinkerXYZInputFile mutated = new TinkerXYZInputFile(newPeptide, Forcefield.OPLS);
         mutated.write("test/mutated_peptide.xyz");
+        // now find non bonded energy terms, torsional energy, and all other terms summed for the mutated peptide
 
         // Compare energy from Tinker with energy from OPLS calculator
         if (calculatorPotentialEnergy == tinkerPotentialEnergy)
