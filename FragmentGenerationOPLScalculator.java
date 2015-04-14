@@ -59,18 +59,33 @@ public class FragmentGenerationOPLScalculator extends FixedSequenceOPLScalculato
     {
         double energyChange = 0.0;
         // Find energy change in dihedrals of mutatedResidue
+        
+        System.out.println("In calculate energy");
+
         Residue previousResidue = currentConformation.sequence.get(newConformation.sequence.indexOf(mutatedResidue));
         ProtoTorsion newPhi = mutatedResidue.phi;     
         ProtoTorsion oldPhi = previousResidue.phi;
         energyChange += (getDihedralEnergy(newPhi) - getDihedralEnergy(oldPhi));
+        
+        System.out.println(newPhi.toString(newConformation)); 
+        System.out.println("New phi: " + getDihedralEnergy(newPhi));
+        System.out.println("old phi: " + getDihedralEnergy(oldPhi));
 
         ProtoTorsion newPsi = mutatedResidue.psi;
         ProtoTorsion oldPsi = previousResidue.psi;
         energyChange += (getDihedralEnergy(newPsi) - getDihedralEnergy(oldPsi));
+        
+        System.out.println(newPsi.toString(newConformation));
+        System.out.println("New psi: " + getDihedralEnergy(newPsi));
+        System.out.println("old psi: " + getDihedralEnergy(oldPsi));
 
         ProtoTorsion newOmega = mutatedResidue.omega;
         ProtoTorsion oldOmega = previousResidue.omega;
         energyChange += (getDihedralEnergy(newOmega) - getDihedralEnergy(oldOmega));
+ 
+        System.out.println("New omega: " + getDihedralEnergy(newOmega));
+        System.out.println("old omega: " + getDihedralEnergy(oldOmega));
+
 
         System.out.println("Before chi energy calculations the energy change is: " + energyChange);
 
@@ -88,7 +103,11 @@ public class FragmentGenerationOPLScalculator extends FixedSequenceOPLScalculato
 
         // Recalculate the non bonded energy
         double newNonBondedEnergy = getNonBondedEnergy(newConformation);
+        System.out.println("Previous non bonded energy : " + currentNonBondedEnergy);
+
         energyChange += (newNonBondedEnergy - currentNonBondedEnergy);
+        
+        System.out.println("the energy change is: " + energyChange);
 
         // Reset conformations and return new energy
         double oldEnergy = currentConformation.energyBreakdown.totalEnergy;
@@ -118,8 +137,6 @@ public class FragmentGenerationOPLScalculator extends FixedSequenceOPLScalculato
         
         TinkerXYZInputFile tinkerTest = new TinkerXYZInputFile(peptide, Forcefield.OPLS);
         tinkerTest.write("test/original_peptide.xyz");
-        // write method to find non bonded energy terms, torsional energy, and all other terms summed
-        // add to TinkerAnalysis
 
         // Create OPLS calculator
         FragmentGenerationOPLScalculator calculator = new FragmentGenerationOPLScalculator(peptide);

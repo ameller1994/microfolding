@@ -206,7 +206,7 @@ public class FixedSequenceOPLScalculator
 
     /** Returns the energy of a dihedral angle 
      * This method queries the OPLS forcefield and calculates the dihedral energy based on the OPLS force field.
-     * This method uses the formula E = sigma( Vi/2*(1+cos(Per_i*(phi - Phase_i))) ) where V is the amplitude, Per is the periodicity.
+     * This method uses the formula E = sigma( Vi/2*(1+/-cos(Per_i*(phi - Phase_i))) ) where V is the amplitude, Per is the periodicity.
      * @param protoTorsion the proto torsion of interest
      * @retun the energy value in the OPLS molecular mechanics force field energy calculation
      */
@@ -214,7 +214,7 @@ public class FixedSequenceOPLScalculator
     {
         OPLSforcefield.TorsionalParameter torsionalParameter = getTorsionalParameter(protoTorsion);
         
-        // Perform calculation of energy change using the formula: E = sigma( Vi/2*(1+cos(Per_i*(phi - Phase_i)) ))
+        // Perform calculation of energy change using the formula: E = sigma( Vi/2*(1+/-cos(Per_i*(phi - Phase_i)) ))
         // where V is the amplitude, Per is the periodicity.
         double angle = protoTorsion.getDihedralAngle();
         double dihedralEnergy = 0.0;
@@ -224,7 +224,14 @@ public class FixedSequenceOPLScalculator
             // Even terms will have phase of 180.0
             if (torsionalParameter.periodicity.get(i) % 2 == 0)
                 phase = 180.0;
-            double E_i = torsionalParameter.amplitudes.get(i) / 2 * (1 + Math.cos(torsionalParameter.periodicity.get(i) * (angle - phase)));  
+            
+            // Even terms and odd terms differ in their Fourier term    
+            double E_i = 0.0;
+            if (torsionalParameter.periodicity.get(i) % 2 == 0)
+                E_i = torsionalParameter.amplitudes.get(i) / 2 * (1 - Math.cos(torsionalParameter.periodicity.get(i) * (angle-phase)));
+            else
+                E_i = torsionalParameter.amplitudes.get(i) / 2 * (1 + Math.cos(torsionalParameter.periodicity.get(i) * (angle - phase)));  
+            
             dihedralEnergy += E_i;
        }
 
@@ -438,6 +445,7 @@ public class FixedSequenceOPLScalculator
         atomClasses.add(getOPLSClass(protoTorsion.atom2.type2));
         atomClasses.add(getOPLSClass(protoTorsion.atom3.type2));
         atomClasses.add(getOPLSClass(protoTorsion.atom4.type2));
+        
         OPLSforcefield.TorsionalParameter torsionalParameter = OPLSforcefield.TORSIONAL_MAP.get(atomClasses);
         if (torsionalParameter == null)
         {
