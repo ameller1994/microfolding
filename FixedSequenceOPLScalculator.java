@@ -228,9 +228,9 @@ public class FixedSequenceOPLScalculator
             // Even terms and odd terms differ in their Fourier term    
             double E_i = 0.0;
             if (torsionalParameter.periodicity.get(i) % 2 == 0)
-                E_i = torsionalParameter.amplitudes.get(i) / 2 * (1 - Math.cos(torsionalParameter.periodicity.get(i) * (angle-phase)));
+                E_i = torsionalParameter.amplitudes.get(i) / 2 * (1 - Math.cos(Math.PI / 180.0 * torsionalParameter.periodicity.get(i) * (angle-phase)));
             else
-                E_i = torsionalParameter.amplitudes.get(i) / 2 * (1 + Math.cos(torsionalParameter.periodicity.get(i) * (angle - phase)));  
+                E_i = torsionalParameter.amplitudes.get(i) / 2 * (1 + Math.cos(Math.PI / 180.0 * torsionalParameter.periodicity.get(i) * (angle - phase)));  
             
             dihedralEnergy += E_i;
        }

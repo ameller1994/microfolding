@@ -82,7 +82,8 @@ public class FragmentGenerationOPLScalculator extends FixedSequenceOPLScalculato
         ProtoTorsion newOmega = mutatedResidue.omega;
         ProtoTorsion oldOmega = previousResidue.omega;
         energyChange += (getDihedralEnergy(newOmega) - getDihedralEnergy(oldOmega));
- 
+
+        System.out.println(newOmega.toString(newConformation));
         System.out.println("New omega: " + getDihedralEnergy(newOmega));
         System.out.println("old omega: " + getDihedralEnergy(oldOmega));
 
