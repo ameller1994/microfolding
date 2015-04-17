@@ -202,7 +202,37 @@ public class FixedSequenceOPLScalculator
         // NOTE THIS IS FOR TESTING
         return newPotentialEnergy;
     }
-    /*
+    */
+
+    /** Returns all dihedral indices that would change with the given dihedral that is undergoing a mutation
+     * This method relies on the intuition that if one changes a dihedral a1-a2-a3-a4 then all dihedrals with the same a2 and a3 are also changing.
+     * This can be shown by doing a single torsional mutation and looking at the overall change in torsional energy in Tinker.
+     * @param a dihedral that is being mutated 
+     * @return a set containing all dihedrals that are changing as a result of this dihedral mutation in lists of indices 
+     */
+    public Set<List<Integer>> getDihedralChanges(ProtoTorsion mutatedDihedral)
+    {
+        // Get adjacent atoms not including a2 or a3 to make combinations of a-a2-a3-a
+        Set<Atom> connectedToAtom2 = currentConformation.getAdjacentAtoms(mutatedDihedral.atom2);
+        connectedToAtom2.remove(mutatedDihedral.atom3);
+        Set<Atom> connectedToAtom3 = currentConformation.getAdjacentAtoms(mutatedDihedral.atom3);
+        connectedToAtom3.remove(mutatedDihedral.atom2);
+        Set<List<Integer>> returnSet = new HashSet<>();
+        for (Atom a1 : connectedToAtom2)
+        {
+            for (Atom a4 : connectedToAtom3)
+            {
+                List<Integer> torsionIndices = new LinkedList<>();
+                torsionIndices.add(currentConformation.contents.indexOf(a1));
+                torsionIndices.add(currentConformation.contents.indexOf(mutatedDihedral.atom2));
+                torsionIndices.add(currentConformation.contents.indexOf(mutatedDihedral.atom3));
+                torsionIndices.add(currentConformation.contents.indexOf(a4));
+                returnSet.add(torsionIndices);
+            }
+        }
+        System.out.println("The return set size is: " + returnSet.size());
+        return returnSet;
+    }
 
     /** Returns the energy of a dihedral angle 
      * This method queries the OPLS forcefield and calculates the dihedral energy based on the OPLS force field.
@@ -210,13 +240,46 @@ public class FixedSequenceOPLScalculator
      * @param protoTorsion the proto torsion of interest
      * @retun the energy value in the OPLS molecular mechanics force field energy calculation
      */
-    public double getDihedralEnergy(ProtoTorsion protoTorsion)
+    public static double getDihedralEnergy(ProtoTorsion protoTorsion)
     {
         OPLSforcefield.TorsionalParameter torsionalParameter = getTorsionalParameter(protoTorsion);
         
         // Perform calculation of energy change using the formula: E = sigma( Vi/2*(1+/-cos(Per_i*(phi - Phase_i)) ))
         // where V is the amplitude, Per is the periodicity.
         double angle = protoTorsion.getDihedralAngle();
+        return getDihedralEnergy(torsionalParameter, angle); 
+
+    }
+
+    public static double getDihedralEnergy(List<Integer> indices, Peptide conformation)
+    {
+        List<Integer> atomClasses = new LinkedList<>();
+        atomClasses.add(getOPLSClass(conformation.contents.get(indices.get(0)).type2));
+        atomClasses.add(getOPLSClass(conformation.contents.get(indices.get(1)).type2));
+        atomClasses.add(getOPLSClass(conformation.contents.get(indices.get(2)).type2));
+        atomClasses.add(getOPLSClass(conformation.contents.get(indices.get(3)).type2));
+        
+        System.out.println(indices);
+        OPLSforcefield.TorsionalParameter torsionalParameter = getTorsionalParameter(atomClasses);
+        
+        Vector3D v1 = conformation.contents.get(indices.get(0)).position; 
+        Vector3D v2 = conformation.contents.get(indices.get(1)).position; 
+        Vector3D v3 = conformation.contents.get(indices.get(2)).position; 
+        Vector3D v4 = conformation.contents.get(indices.get(3)).position;
+
+        double angle = AbstractTorsion.getDihedralAngle(v1,v2,v3,v4);
+        return getDihedralEnergy(torsionalParameter, angle);
+    }
+
+    
+    /** This method finds the energy of a dihedral given an angle measurement and a torsional parameter 
+     * @param torsionalParameter the torsional parameter for the given angle measurement
+     * @param angle the angle in degrees
+     * @return energy of dihedral in kcal
+     */
+    private static double getDihedralEnergy(OPLSforcefield.TorsionalParameter torsionalParameter, double angle)
+    {
+        double angleInRadians = angle * Math.PI / 180.0;
         double dihedralEnergy = 0.0;
         for (int i = 0; i < torsionalParameter.periodicity.size(); i++)
         {
@@ -236,10 +299,8 @@ public class FixedSequenceOPLScalculator
        }
 
         return dihedralEnergy;
-
     }
 
-            
     /** A method that returns to the state before the last mutation. 
     * This is useful because we can calculate an energy for a potential Monte Carlo move, reject the change, and then revert to the state before the change.
     */
@@ -437,7 +498,7 @@ public class FixedSequenceOPLScalculator
      * @param protoTorsion a proto torsion whose torsional parameters will be queried
      * @return a OPLSforcefield TorsionalParameter object containing the amplitude and periodicity corresponding to the torsion
     */
-    public OPLSforcefield.TorsionalParameter getTorsionalParameter(ProtoTorsion protoTorsion)
+    public static OPLSforcefield.TorsionalParameter getTorsionalParameter(ProtoTorsion protoTorsion)
     {
         // Get atom classes for the proto torsion
         List<Integer> atomClasses = new LinkedList<>();
@@ -446,6 +507,11 @@ public class FixedSequenceOPLScalculator
         atomClasses.add(getOPLSClass(protoTorsion.atom3.type2));
         atomClasses.add(getOPLSClass(protoTorsion.atom4.type2));
         
+        return getTorsionalParameter(atomClasses);    
+    }
+
+    private static OPLSforcefield.TorsionalParameter getTorsionalParameter(List<Integer> atomClasses)
+    {
         OPLSforcefield.TorsionalParameter torsionalParameter = OPLSforcefield.TORSIONAL_MAP.get(atomClasses);
         if (torsionalParameter == null)
         {

@@ -63,6 +63,7 @@ public class FragmentGenerationOPLScalculator extends FixedSequenceOPLScalculato
         System.out.println("In calculate energy");
 
         Residue previousResidue = currentConformation.sequence.get(newConformation.sequence.indexOf(mutatedResidue));
+        /*
         ProtoTorsion newPhi = mutatedResidue.phi;     
         ProtoTorsion oldPhi = previousResidue.phi;
         energyChange += (getDihedralEnergy(newPhi) - getDihedralEnergy(oldPhi));
@@ -78,15 +79,12 @@ public class FragmentGenerationOPLScalculator extends FixedSequenceOPLScalculato
         System.out.println(newPsi.toString(newConformation));
         System.out.println("New psi: " + getDihedralEnergy(newPsi));
         System.out.println("old psi: " + getDihedralEnergy(oldPsi));
+        */
 
-        ProtoTorsion newOmega = mutatedResidue.omega;
         ProtoTorsion oldOmega = previousResidue.omega;
-        energyChange += (getDihedralEnergy(newOmega) - getDihedralEnergy(oldOmega));
-
-        System.out.println(newOmega.toString(newConformation));
-        System.out.println("New omega: " + getDihedralEnergy(newOmega));
-        System.out.println("old omega: " + getDihedralEnergy(oldOmega));
-
+        Set<List<Integer>> setTorsionIndices = getDihedralChanges(oldOmega);
+        for (List<Integer> list : setTorsionIndices)
+            energyChange += (getDihedralEnergy(list,newConformation) - getDihedralEnergy(list,currentConformation));  
 
         System.out.println("Before chi energy calculations the energy change is: " + energyChange);
 
