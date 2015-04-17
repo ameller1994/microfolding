@@ -145,8 +145,8 @@ public class FragmentGenerationOPLScalculator extends FixedSequenceOPLScalculato
         // Make a mutation
         // Pick a random residue and change omega, phi, psi
         int residueNumber = 2;
-        peptide = BackboneMutator.mutateOmega(peptide, residueNumber);
-        Peptide newPeptide = BackboneMutator.mutatePhiPsi(peptide, residueNumber);
+        Peptide newPeptide = BackboneMutator.mutateOmega(peptide, residueNumber);
+        //Peptide newPeptide = BackboneMutator.mutatePhiPsi(peptide, residueNumber);
        
         // Change chis -- rotamer pack (to add)
 
