@@ -526,7 +526,7 @@ public class FixedSequenceOPLScalculator
         return getTorsionalParameter(atomClasses);    
     }
 
-    private static OPLSforcefield.TorsionalParameter getTorsionalParameter(List<Integer> atomClasses)
+    public static OPLSforcefield.TorsionalParameter getTorsionalParameter(List<Integer> atomClasses)
     {
         OPLSforcefield.TorsionalParameter torsionalParameter = OPLSforcefield.TORSIONAL_MAP.get(atomClasses);
         if (torsionalParameter == null)

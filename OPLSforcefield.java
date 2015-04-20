@@ -95,30 +95,21 @@ public class OPLSforcefield implements Singleton
                             atomClasses.add(Integer.valueOf(fields.get(3)));
                             atomClasses.add(Integer.valueOf(fields.get(4)));
 
-                            if (atomClasses.get(0) == 1 && atomClasses.get(1) == 1 && atomClasses.get(2) == 77 && atomClasses.get(3) == 1)
-                                System.out.println("Finds relevant dihedral");
-
                             // differing lengths are possible for the torsion parameter data 
-                            List<Integer> periodicity = new LinkedList<>();
-                            List<Double> amplitudes = new LinkedList<>();
+                            double[] amplitudes = new double[3];
                             for (int i = 5; i < fields.size(); i = i+3) 
                             {
                                 //ignore comments
                                 if (fields.get(i).equals("#"))
                                     break;
-                                amplitudes.add(Double.valueOf(fields.get(i)));
-                                periodicity.add(Integer.valueOf(fields.get(i+2)));
+                                int periodicity = Integer.valueOf(fields.get(i+2));
+                                amplitudes[periodicity-1] = Double.valueOf(fields.get(i));
 
                             }
                             
                             // if there is no data, assign zero energy to this torsion
-                            if (periodicity.size() == 0)
-                            {
-                                periodicity.add(1);
-                                amplitudes.add(0.0);
-                            }
 
-                            TorsionalParameter torsionalParameter = new TorsionalParameter(periodicity, amplitudes);
+                            TorsionalParameter torsionalParameter = new TorsionalParameter(amplitudes);
                             tempTorsionalMap.put(atomClasses, torsionalParameter);
 
                             //note there is one duplicate value in the OPLS parameter file
@@ -146,34 +137,30 @@ public class OPLSforcefield implements Singleton
      * The OPLS forcefield only contains a Fourier expansion up to 3 terms */
     public static class TorsionalParameter implements Immutable
     {
-        /** The periodicity for all torsion parameters */
-        public final List<Integer> periodicity;
-
         /** The amplitudes for a Fourier term */
-        public final List<Double> amplitudes;
+        public final double[] amplitudes;
 
         /** Constructor that assumes user passes in parallel lists of torsional parameter terms. 
          * Note that the phase for all odd terms is assumed to be 0.0 degrees and the phase for even terms is 180.0 
          */ 
-        public TorsionalParameter(List<Integer> periodicity, List<Double> amplitudes)
+        public TorsionalParameter(double[] amplitudes)
         {
-            if (periodicity.size() != amplitudes.size())
-                throw new IllegalArgumentException("Input lists do not match in size");
-        
-            this.periodicity = ImmutableList.copyOf(periodicity);
-            this.amplitudes = ImmutableList.copyOf(amplitudes);
+            if (amplitudes.length != 3)
+                throw new IllegalArgumentException("The number of torsional terms is not 3");
+            this.amplitudes = amplitudes;
         }
 
         @Override
         public String toString()
         {
             String returnString = "Torsional parameter: \n";
-            for (int i = 0; i < periodicity.size(); i++)
+            for (int i = 0; i < amplitudes.length; i++)
             {
                 double phase = 0.0;
-                if (periodicity.get(i) % 2 == 0)
+                // Even terms (i is odd) have phase of 180 degrees in OPLS data file
+                if (i % 2 != 0)
                     phase = 180.0;
-                returnString = returnString + "P: " + periodicity.get(i) + " A: " + amplitudes.get(i) + " Ph: " + phase + "\n";  
+                returnString = returnString + "P: " + (i+1) + " A: " + amplitudes[i] + " Ph: " + phase + "\n";  
             }
             return returnString;
         }
@@ -203,7 +190,7 @@ public class OPLSforcefield implements Singleton
         atomClasses.add(class3);
         atomClasses.add(class4);
 
-        TorsionalParameter torsionalParameter = TORSIONAL_MAP.get(atomClasses);
+        TorsionalParameter torsionalParameter = FixedSequenceOPLScalculator.getTorsionalParameter(atomClasses);
         System.out.println(torsionalParameter);
     }
 } 
