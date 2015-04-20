@@ -33,7 +33,11 @@ public class FragmentGenerationOPLScalculator extends FixedSequenceOPLScalculato
         for (Residue r : startingPeptide.sequence)
         {   
            for (ProtoTorsion chi : r.chis)
-               tempTorsionalEnergy += getDihedralEnergy(chi);
+           {
+               Set<List<Integer>> sidechainTorsionIndices = getDihedralChanges(chi, startingPeptide);
+               for (List<Integer> torsionIndices : sidechainTorsionIndices)
+                   tempTorsionalEnergy += getDihedralEnergy(torsionIndices, startingPeptide);
+            }
         }
 
         this.currentSidechainTorsionalEnergy = tempTorsionalEnergy;
@@ -58,55 +62,53 @@ public class FragmentGenerationOPLScalculator extends FixedSequenceOPLScalculato
     public double calculateEnergy(Residue mutatedResidue, Peptide newConformation)
     {
         double energyChange = 0.0;
+
         // Find energy change in dihedrals of mutatedResidue
-        
-        System.out.println("In calculate energy");
+        System.out.println("Calculating energy change...");
 
         Residue previousResidue = currentConformation.sequence.get(newConformation.sequence.indexOf(mutatedResidue));
-        /*
-        ProtoTorsion newPhi = mutatedResidue.phi;     
+        
+        // Angle mutations occur at phi, psi, omega
         ProtoTorsion oldPhi = previousResidue.phi;
-        energyChange += (getDihedralEnergy(newPhi) - getDihedralEnergy(oldPhi));
-        
-        System.out.println(newPhi.toString(newConformation)); 
-        System.out.println("New phi: " + getDihedralEnergy(newPhi));
-        System.out.println("old phi: " + getDihedralEnergy(oldPhi));
-
-        ProtoTorsion newPsi = mutatedResidue.psi;
         ProtoTorsion oldPsi = previousResidue.psi;
-        energyChange += (getDihedralEnergy(newPsi) - getDihedralEnergy(oldPsi));
-        
-        System.out.println(newPsi.toString(newConformation));
-        System.out.println("New psi: " + getDihedralEnergy(newPsi));
-        System.out.println("old psi: " + getDihedralEnergy(oldPsi));
-        */
-
         ProtoTorsion oldOmega = previousResidue.omega;
-        Set<List<Integer>> setTorsionIndices = getDihedralChanges(oldOmega);
-        for (List<Integer> list : setTorsionIndices)
-            energyChange += (getDihedralEnergy(list,newConformation) - getDihedralEnergy(list,currentConformation));  
+        
+        // Find all dihedrals that are changing as a result of the backbone mutations
+        Set<List<Integer>> backboneTorsionIndices = new HashSet<>();
+        backboneTorsionIndices = getDihedralChanges(oldPhi, currentConformation);
+        backboneTorsionIndices.addAll(getDihedralChanges(oldOmega, currentConformation));
+        backboneTorsionIndices.addAll(getDihedralChanges(oldPsi, currentConformation));
+        
+        // Call dihedral energy for each torsion that is changing
+        for (List<Integer> torsionIndices : backboneTorsionIndices)
+            energyChange += (getDihedralEnergy(torsionIndices,newConformation) - getDihedralEnergy(torsionIndices,currentConformation));  
 
-        System.out.println("Before chi energy calculations the energy change is: " + energyChange);
+        System.out.println("Backbone torsional energy change is: " + energyChange);
 
         // Find energy change in all chis that are changed as a result of rotamer packing
         double newSidechainTorsionalEnergy = 0.0;
         for (Residue r : newConformation.sequence)
         {
             for (ProtoTorsion chi : r.chis)
-                newSidechainTorsionalEnergy += getDihedralEnergy(chi);
+            {
+                Set<List<Integer>> sidechainTorsionIndices = getDihedralChanges(chi, newConformation);
+                for (List<Integer> torsionIndices : sidechainTorsionIndices)
+                    newSidechainTorsionalEnergy += getDihedralEnergy(torsionIndices, newConformation);
+            }
         }
         energyChange += (newSidechainTorsionalEnergy - currentSidechainTorsionalEnergy);
         
         // For debugging
-        System.out.println("The torsional energy change is " + energyChange);
+        System.out.println("The total torsional energy change is " + energyChange);
 
         // Recalculate the non bonded energy
         double newNonBondedEnergy = getNonBondedEnergy(newConformation);
         System.out.println("Previous non bonded energy : " + currentNonBondedEnergy);
+        System.out.println("New non bonded energy : " + newNonBondedEnergy); 
 
         energyChange += (newNonBondedEnergy - currentNonBondedEnergy);
         
-        System.out.println("the energy change is: " + energyChange);
+        System.out.println("The overall energy change is: " + energyChange);
 
         // Reset conformations and return new energy
         double oldEnergy = currentConformation.energyBreakdown.totalEnergy;
@@ -144,12 +146,12 @@ public class FragmentGenerationOPLScalculator extends FixedSequenceOPLScalculato
         // Pick a random residue and change omega, phi, psi
         int residueNumber = 2;
         Peptide newPeptide = BackboneMutator.mutateOmega(peptide, residueNumber);
-        //Peptide newPeptide = BackboneMutator.mutatePhiPsi(peptide, residueNumber);
+        newPeptide = BackboneMutator.mutatePhiPsi(peptide, residueNumber);
        
         // Change chis -- rotamer pack (to add)
 
         double calculatorPotentialEnergy = calculator.calculateEnergy(newPeptide.sequence.get(residueNumber), newPeptide);
-        System.out.println("New nonbonded energy is: " + calculator.currentNonBondedEnergy);
+        //System.out.println("New nonbonded energy is: " + calculator.currentNonBondedEnergy);
 
         // Call Tinker on mutated peptide
         TinkerAnalysisJob tinkerAnalysisJob = new TinkerAnalysisJob(newPeptide, Forcefield.OPLS);

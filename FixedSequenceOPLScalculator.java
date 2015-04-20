@@ -66,7 +66,7 @@ public class FixedSequenceOPLScalculator
         double[][] tempSigmas = new double[totalAtoms][totalAtoms];
         
         // Loop through all atom pairs
-        for (int i = 0; i < totalAtoms; i++)
+        for (int i = 0; i < totalAtoms - 1; i++)
         {
             // Get atom type and class of atom1 
             Integer atomType1 = startingPeptide.contents.get(i).type2;
@@ -100,7 +100,12 @@ public class FixedSequenceOPLScalculator
                 // scale 1,4-interactions by 50%
                 double scaling = 1.0;
                 if ( pathEdges != null && pathEdges.size() < 3 )
+                {
+                    tempVDWMultiple[i][j] = 0.0;
+                    tempSigmas[i][j] = 0.0;
+                    tempElectrostaticMultiple[i][j] = 0.0;
                     continue;
+                }
                 else if ( pathEdges != null && pathEdges.size() == 3 )
                     scaling = 0.5;
     
@@ -207,30 +212,32 @@ public class FixedSequenceOPLScalculator
     /** Returns all dihedral indices that would change with the given dihedral that is undergoing a mutation
      * This method relies on the intuition that if one changes a dihedral a1-a2-a3-a4 then all dihedrals with the same a2 and a3 are also changing.
      * This can be shown by doing a single torsional mutation and looking at the overall change in torsional energy in Tinker.
-     * @param a dihedral that is being mutated 
+     * @param a dihedral that is being mutated
+     * @param peptide the corresponding conformation for the dihedral
      * @return a set containing all dihedrals that are changing as a result of this dihedral mutation in lists of indices 
      */
-    public Set<List<Integer>> getDihedralChanges(ProtoTorsion mutatedDihedral)
+    public static Set<List<Integer>> getDihedralChanges(ProtoTorsion mutatedDihedral, Peptide peptide)
     {
         // Get adjacent atoms not including a2 or a3 to make combinations of a-a2-a3-a
-        Set<Atom> connectedToAtom2 = currentConformation.getAdjacentAtoms(mutatedDihedral.atom2);
+        Set<Atom> connectedToAtom2 = peptide.getAdjacentAtoms(mutatedDihedral.atom2);
         connectedToAtom2.remove(mutatedDihedral.atom3);
-        Set<Atom> connectedToAtom3 = currentConformation.getAdjacentAtoms(mutatedDihedral.atom3);
+
+        Set<Atom> connectedToAtom3 = peptide.getAdjacentAtoms(mutatedDihedral.atom3);
         connectedToAtom3.remove(mutatedDihedral.atom2);
+        
         Set<List<Integer>> returnSet = new HashSet<>();
         for (Atom a1 : connectedToAtom2)
         {
             for (Atom a4 : connectedToAtom3)
             {
                 List<Integer> torsionIndices = new LinkedList<>();
-                torsionIndices.add(currentConformation.contents.indexOf(a1));
-                torsionIndices.add(currentConformation.contents.indexOf(mutatedDihedral.atom2));
-                torsionIndices.add(currentConformation.contents.indexOf(mutatedDihedral.atom3));
-                torsionIndices.add(currentConformation.contents.indexOf(a4));
+                torsionIndices.add(peptide.contents.indexOf(a1));
+                torsionIndices.add(peptide.contents.indexOf(mutatedDihedral.atom2));
+                torsionIndices.add(peptide.contents.indexOf(mutatedDihedral.atom3));
+                torsionIndices.add(peptide.contents.indexOf(a4));
                 returnSet.add(torsionIndices);
             }
         }
-        System.out.println("The return set size is: " + returnSet.size());
         return returnSet;
     }
 
@@ -259,7 +266,6 @@ public class FixedSequenceOPLScalculator
         atomClasses.add(getOPLSClass(conformation.contents.get(indices.get(2)).type2));
         atomClasses.add(getOPLSClass(conformation.contents.get(indices.get(3)).type2));
         
-        System.out.println(indices);
         OPLSforcefield.TorsionalParameter torsionalParameter = getTorsionalParameter(atomClasses);
         
         Vector3D v1 = conformation.contents.get(indices.get(0)).position; 
@@ -354,7 +360,7 @@ public class FixedSequenceOPLScalculator
                         // avoid blowing up the energy
                         if ( distance < MIN_DISTANCE )
                             distance = MIN_DISTANCE;
-                        double electrostatic = (charge1 * charge2 * COULOMB_CONSTANT) / (distance * distance);
+                        double electrostatic = (charge1 * charge2 * COULOMB_CONSTANT) / (distance);
 
                         // apply the combining rules for epsilon and sigma if necessary
                         double sigma = vdw_distance1;
@@ -374,7 +380,7 @@ public class FixedSequenceOPLScalculator
                         double scaling = 1.0; // assumed to be 1 because all interactions are 1,4 or greater
                         if (atom1.equals(dihedralAtom1) && atom2.equals(dihedralAtom4))
                             scaling = 0.5;
-                        energy += (electrostatic + steric) * scaling;
+                        energy += (electrostatic * + steric) * scaling;
                     }
             }
         return energy;
@@ -389,7 +395,8 @@ public class FixedSequenceOPLScalculator
     {
         int totalAtoms = conformation.contents.size();
         double nonBondedEnergy = 0.0;
-        for (int i = 0; i < totalAtoms; i++)
+        int numberInteractions = 0;
+        for (int i = 0; i < totalAtoms - 1; i++)
         {
             for (int j = i+1; j < totalAtoms; j++)
             {
@@ -401,14 +408,23 @@ public class FixedSequenceOPLScalculator
                 if ( distance < MIN_DISTANCE )
                     distance = MIN_DISTANCE;
                 
-                double electrostatic = electrostaticMultiple[i][j] / (distance * distance); 
+                double electrostatic = electrostaticMultiple[i][j] / distance; 
                 double temp = Math.pow(sigmas[i][j] / distance, 6);
                 double steric = VDWMultiple[i][j] * temp * (temp - 1);
                 
+                //Debugging code
+                if (electrostatic != 0.0)
+                    System.out.println("Electrostatic " + conformation.getAtomString(atom1) +  " - " + conformation.getAtomString(atom2) + " D: " + distance +  " E:  " + electrostatic);
+                if (electrostatic !=  0.0)
+                    numberInteractions++; 
+
                 // scaling is already included in the electrostatic and steric terms
-                nonBondedEnergy += (electrostatic + steric);
+                nonBondedEnergy += (electrostatic); // +  steric);
             }
         }
+
+        System.out.println("DONE CALCULATING NON BONDED ENERGY");
+        System.out.println("Number of interactions: " + numberInteractions);
         return nonBondedEnergy; 
     }
 
@@ -461,7 +477,7 @@ public class FixedSequenceOPLScalculator
                         double distance = Vector3D.distance(atom1.position, atom2.position);
                         if ( distance < MIN_DISTANCE )
                             distance = MIN_DISTANCE;
-                        double electrostatic = (charge1 * charge2 * COULOMB_CONSTANT) / (distance * distance);
+                        double electrostatic = (charge1 * charge2 * COULOMB_CONSTANT) / (distance);
 
                         // apply the combining rules for epsilon and sigma if necessary
                         double sigma = vdw_distance1;
