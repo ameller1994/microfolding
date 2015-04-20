@@ -285,24 +285,13 @@ public class FixedSequenceOPLScalculator
      */
     private static double getDihedralEnergy(OPLSforcefield.TorsionalParameter torsionalParameter, double angle)
     {
-        double angleInRadians = angle * Math.PI / 180.0;
-        double dihedralEnergy = 0.0;
-        for (int i = 0; i < torsionalParameter.periodicity.size(); i++)
-        {
-            double phase = 0.0;
-            // Even terms will have phase of 180.0
-            if (torsionalParameter.periodicity.get(i) % 2 == 0)
-                phase = 180.0;
-            
-            // Even terms and odd terms differ in their Fourier term    
-            double E_i = 0.0;
-            if (torsionalParameter.periodicity.get(i) % 2 == 0)
-                E_i = torsionalParameter.amplitudes.get(i) / 2 * (1 - Math.cos(Math.PI / 180.0 * torsionalParameter.periodicity.get(i) * (angle-phase)));
-            else
-                E_i = torsionalParameter.amplitudes.get(i) / 2 * (1 + Math.cos(Math.PI / 180.0 * torsionalParameter.periodicity.get(i) * (angle - phase)));  
-            
-            dihedralEnergy += E_i;
-       }
+        double angleInRadians = Math.toRadians(angle);
+        double[] amplitude = torsionalParameter.amplitudes;
+
+        double dihedralEnergy = amplitude[0] / 2 * (1 + Math.cos(angleInRadians));
+        // Phase for even terms is 180 degrees or Math.PI
+        dihedralEnergy += amplitude[1] / 2 * (1 - 2*Math.cos(angleInRadians - Math.PI));
+        dihedralEnergy += amplitude[2] / 2 * (1 + 3*Math.cos(angleInRadians));
 
         return dihedralEnergy;
     }

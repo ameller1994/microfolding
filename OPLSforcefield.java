@@ -181,9 +181,9 @@ public class OPLSforcefield implements Singleton
         load();
         // Test for specific values
         int class1 = 1;
-        int class2 = 77;
+        int class2 = 1;
         int class3 = 1;
-        int class4 = 1;
+        int class4 = 2;
         List<Integer> atomClasses =  new LinkedList<>();
         atomClasses.add(class1);
         atomClasses.add(class2);
