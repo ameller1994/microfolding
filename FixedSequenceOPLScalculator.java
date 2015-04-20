@@ -290,8 +290,8 @@ public class FixedSequenceOPLScalculator
 
         double dihedralEnergy = amplitude[0] / 2 * (1 + Math.cos(angleInRadians));
         // Phase for even terms is 180 degrees or Math.PI
-        dihedralEnergy += amplitude[1] / 2 * (1 - 2*Math.cos(angleInRadians - Math.PI));
-        dihedralEnergy += amplitude[2] / 2 * (1 + 3*Math.cos(angleInRadians));
+        dihedralEnergy += amplitude[1] / 2 * (1 - Math.cos(2*(angleInRadians - Math.PI)));
+        dihedralEnergy += amplitude[2] / 2 * (1 + Math.cos(3*angleInRadians));
 
         return dihedralEnergy;
     }
