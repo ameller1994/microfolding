@@ -413,13 +413,14 @@ public class FixedSequenceOPLScalculator
                 double steric = VDWMultiple[i][j] * temp * (temp - 1);
                 
                 //Debugging code
-                if (electrostatic != 0.0)
+                /*if (electrostatic != 0.0)
                     System.out.println("Electrostatic " + conformation.getAtomString(atom1) +  " - " + conformation.getAtomString(atom2) + " D: " + distance +  " E:  " + electrostatic);
                 if (electrostatic !=  0.0)
                     numberInteractions++; 
+                */
 
                 // scaling is already included in the electrostatic and steric terms
-                nonBondedEnergy += (electrostatic); // +  steric);
+                nonBondedEnergy += (electrostatic +  steric);
             }
         }
 

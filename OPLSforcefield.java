@@ -129,9 +129,9 @@ public class OPLSforcefield implements Singleton
             // override charges for CA and N of backbones
             // all are set to the alanine parameters
             // vdw types don't need changing because they're all the same atom class
-            tempChargeMap.put(93, 0.14);   // proline HA
-            tempChargeMap.put(86,-0.14);   // proline N
-            tempChargeMap.put(73, 0.14);   // glycine HA
+            //tempChargeMap.put(93, 0.14);   // proline HA
+            //tempChargeMap.put(86,-0.14);   // proline N
+            //tempChargeMap.put(73, 0.14);   // glycine HA
 
             // set permanent fields
             CLASS_MAP = ImmutableMap.copyOf(tempClassMap);
