@@ -28,7 +28,7 @@ public class FragmentGenerationOPLScalculator extends FixedSequenceOPLScalculato
     {
         super(startingPeptide);
         
-        // Calculate total torsional energy 
+        // Calculate total sidechain torsional energy 
         double tempTorsionalEnergy = 0.0;
         for (Residue r : startingPeptide.sequence)
         {   
@@ -84,18 +84,32 @@ public class FragmentGenerationOPLScalculator extends FixedSequenceOPLScalculato
             energyChange += (getDihedralEnergy(torsionIndices,newConformation) - getDihedralEnergy(torsionIndices,currentConformation));  
 
         System.out.println("Backbone torsional energy change is: " + energyChange);
+        
+        int numberTorsionChanges = backboneTorsionIndices.size();
+        System.out.println("Backbone torsion number: " + numberTorsionChanges);
 
         // Find energy change in all chis that are changed as a result of rotamer packing
         double newSidechainTorsionalEnergy = 0.0;
-        for (Residue r : newConformation.sequence)
-        {
-            for (ProtoTorsion chi : r.chis)
+
+        Set<List<Integer>> sidechainTorsionChanges = new HashSet<>();
+        
+       // for (Residue r : newConformation.sequence)
+       // {
+            for (ProtoTorsion chi : mutatedResidue.chis)
             {
                 Set<List<Integer>> sidechainTorsionIndices = getDihedralChanges(chi, newConformation);
+                sidechainTorsionChanges.addAll(sidechainTorsionIndices);
                 for (List<Integer> torsionIndices : sidechainTorsionIndices)
+                {
+                    numberTorsionChanges++;
                     newSidechainTorsionalEnergy += getDihedralEnergy(torsionIndices, newConformation);
+                }
             }
-        }
+       // }
+
+        System.out.println("Number of total torsion changes = " + numberTorsionChanges);
+        System.out.println(sidechainTorsionChanges);
+
         energyChange += (newSidechainTorsionalEnergy - currentSidechainTorsionalEnergy);
         
         // For debugging
@@ -144,7 +158,7 @@ public class FragmentGenerationOPLScalculator extends FixedSequenceOPLScalculato
 
         // Make a mutation
         // Pick a random residue and change omega, phi, psi
-        int residueNumber = 2;
+        int residueNumber = 4;
         Peptide newPeptide = BackboneMutator.mutateOmega(peptide, residueNumber);
         newPeptide = BackboneMutator.mutatePhiPsi(peptide, residueNumber);
        

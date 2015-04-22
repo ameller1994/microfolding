@@ -384,7 +384,6 @@ public class FixedSequenceOPLScalculator
     {
         int totalAtoms = conformation.contents.size();
         double nonBondedEnergy = 0.0;
-        int numberInteractions = 0;
         for (int i = 0; i < totalAtoms - 1; i++)
         {
             for (int j = i+1; j < totalAtoms; j++)
@@ -413,8 +412,6 @@ public class FixedSequenceOPLScalculator
             }
         }
 
-        System.out.println("DONE CALCULATING NON BONDED ENERGY");
-        System.out.println("Number of interactions: " + numberInteractions);
         return nonBondedEnergy; 
     }
 
