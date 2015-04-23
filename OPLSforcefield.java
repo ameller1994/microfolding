@@ -19,8 +19,11 @@ public class OPLSforcefield implements Singleton
     /** Map from atom types to partial charges. */
     public static final Map<Integer,Double> CHARGE_MAP;
 
-    /** Map from atom class to torsional parameters/ */
+    /** Map from atom class to torsional parameters. */
     public static final Map<List<Integer>, TorsionalParameter> TORSIONAL_MAP;
+
+    /** Map from atom class to angle parameters. */
+    public static final Map<List<Integer>, AngleParameter> ANGLE_MAP;
 
     private OPLSforcefield()
     {
@@ -35,6 +38,7 @@ public class OPLSforcefield implements Singleton
             Map<Integer,Double> tempDepthMap = new HashMap<>();
             Map<Integer,Double> tempChargeMap = new HashMap<>();
             Map<List<Integer>, TorsionalParameter> tempTorsionalMap = new HashMap<>();
+            Map<List<Integer>, AngleParameter> tempAngleMap = new HashMap<>();
 
             // read forcefield file
             OutputFileFormat forcefieldFile = new OutputFileFormat(Settings.OPLS_FORCEFIELD_FILENAME) {};
@@ -76,17 +80,23 @@ public class OPLSforcefield implements Singleton
 
                             Double k = Double.valueOf(fields.get(3));
                             Double r0 = Double.valueOf(fields.get(4));
-                        }
+                        } */
                     else if ( fields.get(0).equals("angle") && fields.size() >= 3 )
                         {
+                            List<Integer> atomClasses = new LinkedList<>();
                             Integer classNumber1 = Integer.valueOf(fields.get(1));
                             Integer classNumber2 = Integer.valueOf(fields.get(2));
                             Integer classNumber3 = Integer.valueOf(fields.get(3));
+                            atomClasses.add(classNumber1);
+                            atomClasses.add(classNumber2);
+                            atomClasses.add(classNumber3);
 
                             Double k = Double.valueOf(fields.get(4));
                             Double theta0 = Double.valueOf(fields.get(5));
+                            AngleParameter angleParameter = new AngleParameter(theta0, k);
+
+                            tempAngleMap.put(atomClasses,angleParameter); 
                         }
-                    */
                     else if ( fields.get(0).equals("torsion")) // || fields.get(0).equals("imptors")) && fields.size() >= 3 )
                         {
                             List<Integer> atomClasses = new LinkedList<>();
@@ -130,6 +140,7 @@ public class OPLSforcefield implements Singleton
             VDW_DEPTH_MAP = ImmutableMap.copyOf(tempDepthMap);
             CHARGE_MAP = ImmutableMap.copyOf(tempChargeMap);
             TORSIONAL_MAP = ImmutableMap.copyOf(tempTorsionalMap);
+            ANGLE_MAP = ImmutableMap.copyOf(tempAngleMap);
         }
 
     /** A class representing the torsional parameters of a dihedral angle. 
@@ -166,6 +177,37 @@ public class OPLSforcefield implements Singleton
         }
     }
 
+    /** A class representing angle parameters
+     * It stores the spring constant and the equilibrium value for the OPLS force field. 
+     */
+    public static class AngleParameter implements Immutable
+    {
+        /** The equilibrium value for the angle in degrees */
+        public final double theta_0;
+
+        /** The spring constant for the simple harmonic oscillator representation of the angle energy */
+        public final double k_0;
+
+        /** Standard constructor.
+         * @param theta_0 equilibrium angle value in degrees
+         * @param k_0 spring constant
+         */
+        public AngleParameter(double theta_0, double k_0)
+        {
+            this.theta_0 = theta_0;
+            this.k_0 = k_0;
+        }
+
+        @Override
+        public String toString()
+        {
+            String returnString = "Angle parameter: \n";
+            returnString = returnString + "Theta_0: " + theta_0;
+            returnString = returnString + "k_0: " + k_0;
+            return returnString;
+        }
+    }
+
     /** Forces the database to load. */
     public static void load()
     {
@@ -173,6 +215,7 @@ public class OPLSforcefield implements Singleton
         System.out.printf("%d OPLS vdw classes have been loaded.\n", VDW_DISTANCE_MAP.size());
         System.out.printf("%d OPLS charge parameters have been loaded.\n", CHARGE_MAP.size());
         System.out.printf("%d OPLS torsional parameters have been loaded. \n", TORSIONAL_MAP.size());
+        System.out.printf("%d OPLS angle parameters have been loaded. \n", ANGLE_MAP.size());
     }
 
     /** For testing. */

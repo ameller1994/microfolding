@@ -183,15 +183,7 @@ public class FragmentGenerationOPLScalculator extends FixedSequenceOPLScalculato
             }
 
         }
-
-        // Proline correction
-        if (mutatedResidue.aminoAcid.isProline())
-        {
-            // Add bond change
-
-            // Add angle changes
-        }
-
+        
         System.out.println("Number of total torsion changes = " + numberTorsionChanges);
         for (List<Integer> indices : test)
             System.out.printf("%d - %d - %d - %d\n", indices.get(0) + 1, indices.get(1) + 1, indices.get(2) + 1, indices.get(3) + 1);
@@ -201,6 +193,52 @@ public class FragmentGenerationOPLScalculator extends FixedSequenceOPLScalculato
         // For debugging
         System.out.println("The total torsional energy change is " + energyChange);
 
+        // Proline correction
+        if (mutatedResidue.aminoAcid.isProline())
+        {
+            // Add bond change
+
+            // Add angle changes
+            Atom CGamma = mutatedResidue.chis.get(2).atom3;
+            Atom N = mutatedResidue.N;
+            
+            // Build all angles with N-Cgamma-a or a-Cgamma-N
+            Set<Atom> connectedToCGamma = newConformation.getAdjacentAtoms(CGamma);
+            connectedToCGamma.remove(N);
+            Set<Atom> connectedToN = newConformation.getAdjacentAtoms(N);
+            connectedToN.remove(CGamma);
+
+            Set<List<Integer>> anglesChanging = new HashSet<>();
+
+            // Add angles of N-Cgamma-a
+            for (Atom a : connectedToCGamma)
+            {
+                List<Integer> angleIndices = new LinkedList<>();
+                angleIndices.add(newConformation.contents.indexOf(N));
+                angleIndices.add(newConformation.contents.indexOf(CGamma));
+                angleIndices.add(newConformation.contents.indexOf(a));
+
+                anglesChanging.add(angleIndices);
+            }
+            // Add angles of a-N-Cgamma
+            for (Atom a : connectedToN)
+            {
+                List<Integer> angleIndices = new LinkedList<>();
+                angleIndices.add(newConformation.contents.indexOf(a));
+                angleIndices.add(newConformation.contents.indexOf(N));
+                angleIndices.add(newConformation.contents.indexOf(CGamma));
+                
+                anglesChanging.add(angleIndices);
+            }
+
+            double angleEnergyChange = 0.0;
+            for (List<Integer> angle : anglesChanging)
+                angleEnergyChange += (getAngleEnergy(angle, newConformation) - getAngleEnergy(angle, currentConformation));
+            System.out.println("Angle energy change: " + angleEnergyChange);
+
+            energyChange += angleEnergyChange;
+        }
+        
         // Recalculate the non bonded energy
         double newNonBondedEnergy = getNonBondedEnergy(newConformation);
         System.out.println("Previous non bonded energy : " + currentNonBondedEnergy);

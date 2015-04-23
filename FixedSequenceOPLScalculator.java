@@ -296,6 +296,44 @@ public class FixedSequenceOPLScalculator
         return dihedralEnergy;
     }
 
+    public static double getAngleEnergy(List<Integer> indices, Peptide conformation)
+    {
+        // Query force field for corresponding parameter
+        List<Integer> atomClasses = new LinkedList<>();
+        atomClasses.add(getOPLSClass(conformation.contents.get(indices.get(0)).type2));
+        atomClasses.add(getOPLSClass(conformation.contents.get(indices.get(1)).type2));
+        atomClasses.add(getOPLSClass(conformation.contents.get(indices.get(2)).type2));
+        
+        OPLSforcefield.AngleParameter angleParameter = getAngleParameter(atomClasses);
+
+        // Find angle between atoms corresponding to input indices
+        Atom a1 = conformation.contents.get(indices.get(0));
+        Atom a2 = conformation.contents.get(indices.get(1));
+        Atom a3 = conformation.contents.get(indices.get(2));
+        double angle = Molecule.getAngle(a1, a2, a3);
+
+        return getAngleEnergy(angleParameter, angle);
+    }
+
+    private static OPLSforcefield.AngleParameter getAngleParameter(List<Integer> atomClasses)
+    {
+        OPLSforcefield.AngleParameter angleParameter = OPLSforcefield.ANGLE_MAP.get(atomClasses);
+        if (angleParameter == null)
+        {
+            // Reverse atom class list and query again
+            List<Integer> atomClassesReversed = Lists.reverse(atomClasses);
+            angleParameter = OPLSforcefield.ANGLE_MAP.get(atomClassesReversed);
+            if (angleParameter == null)
+                throw new NullPointerException("Undefined angle parameter for classes: " + atomClasses.toString());
+        }
+        return angleParameter;
+    }
+
+    private static double getAngleEnergy(OPLSforcefield.AngleParameter angleParameter, double angle)
+    {
+        return  angleParameter.k_0 * Math.pow(angle - angleParameter.theta_0, 2);
+    }
+
     /** A method that returns to the state before the last mutation. 
     * This is useful because we can calculate an energy for a potential Monte Carlo move, reject the change, and then revert to the state before the change.
     */
