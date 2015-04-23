@@ -24,6 +24,12 @@ public class FixedSequenceOPLScalculator
     /** distances that are less than this value will be set to this value to avoid blowups */
     public static final double MIN_DISTANCE = 1.0;
 
+    /** the equilibrium length for the proline C Delta - N connection which is needed for proline correction (in Angstroms) */
+    public static final double PROLINE_CDELTA_N_BOND_LENGTH = 1.4490;
+
+    /** the spring constant for the proline C Delta - N connection which is needed for proline correction */
+    public static final double PROLINE_CDELTA_N_SPRING_CONSTANT = 337.0;
+
     /** electrostatic term that allows for quick computation of Coloumbic interaction. It is defined as k * q1 * q2 */
     private double[][] electrostaticMultiple;
 

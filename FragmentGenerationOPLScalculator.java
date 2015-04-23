@@ -43,16 +43,16 @@ public class FragmentGenerationOPLScalculator extends FixedSequenceOPLScalculato
             // If residue is proline, add chi 4 and its dependencies
             if (r.aminoAcid.isProline())
             {
-                // Atom 3 in chi 3 is the gamma carbon
-                Atom Cgamma = r.chis.get(2).atom3;
+                // Atom 3 in chi 3 is the delta carbon
+                Atom Cdelta = r.chis.get(2).atom3;
                 Atom N = r.N;
 
                 // First find all dependencies
                 // Get adjacent atoms not including a2 or a3 to make combinations of a-a2-a3-a
-                Set<Atom> connectedToAtom2 = startingPeptide.getAdjacentAtoms(Cgamma);
+                Set<Atom> connectedToAtom2 = startingPeptide.getAdjacentAtoms(Cdelta);
                 connectedToAtom2.remove(N);
                 Set<Atom> connectedToAtom3 = startingPeptide.getAdjacentAtoms(N);
-                connectedToAtom3.remove(Cgamma);
+                connectedToAtom3.remove(Cdelta);
                 
                 for (Atom a1 : connectedToAtom2)
                 {
@@ -60,7 +60,7 @@ public class FragmentGenerationOPLScalculator extends FixedSequenceOPLScalculato
                     {
                         List<Integer> torsionIndices = new LinkedList<>();
                         torsionIndices.add(startingPeptide.contents.indexOf(a1));
-                        torsionIndices.add(startingPeptide.contents.indexOf(Cgamma));
+                        torsionIndices.add(startingPeptide.contents.indexOf(Cdelta));
                         torsionIndices.add(startingPeptide.contents.indexOf(N));
                         torsionIndices.add(startingPeptide.contents.indexOf(a4));
                         
@@ -151,16 +151,16 @@ public class FragmentGenerationOPLScalculator extends FixedSequenceOPLScalculato
                 // Add additional torsion that are missing from list of side chain torsions
                 // chi 4 and its dependencies must be added
                 
-                // Atom 3 in chi 3 is the gamma carbon
-                Atom Cgamma = mutatedResidue.chis.get(2).atom3;
+                // Atom 3 in chi 3 is the delta carbon
+                Atom Cdelta = mutatedResidue.chis.get(2).atom3;
                 Atom N = mutatedResidue.N;
 
                 // First find all dependencies
                 // Get adjacent atoms not including a2 or a3 to make combinations of a-a2-a3-a
-                Set<Atom> connectedToAtom2 = newConformation.getAdjacentAtoms(Cgamma);
+                Set<Atom> connectedToAtom2 = newConformation.getAdjacentAtoms(Cdelta);
                 connectedToAtom2.remove(N);
                 Set<Atom> connectedToAtom3 = newConformation.getAdjacentAtoms(N);
-                connectedToAtom3.remove(Cgamma);
+                connectedToAtom3.remove(Cdelta);
                 
                 for (Atom a1 : connectedToAtom2)
                 {
@@ -168,7 +168,7 @@ public class FragmentGenerationOPLScalculator extends FixedSequenceOPLScalculato
                     {
                         List<Integer> torsionIndices = new LinkedList<>();
                         torsionIndices.add(newConformation.contents.indexOf(a1));
-                        torsionIndices.add(newConformation.contents.indexOf(Cgamma));
+                        torsionIndices.add(newConformation.contents.indexOf(Cdelta));
                         torsionIndices.add(newConformation.contents.indexOf(N));
                         torsionIndices.add(newConformation.contents.indexOf(a4));
                         if (r.equals(mutatedResidue))
@@ -196,37 +196,56 @@ public class FragmentGenerationOPLScalculator extends FixedSequenceOPLScalculato
         // Proline correction
         if (mutatedResidue.aminoAcid.isProline())
         {
-            // Add bond change
-
-            // Add angle changes
-            Atom CGamma = mutatedResidue.chis.get(2).atom3;
+            // This connection is not included in the list of chis  
+            Atom CDelta = mutatedResidue.chis.get(2).atom3;
             Atom N = mutatedResidue.N;
             
-            // Build all angles with N-Cgamma-a or a-Cgamma-N
-            Set<Atom> connectedToCGamma = newConformation.getAdjacentAtoms(CGamma);
-            connectedToCGamma.remove(N);
+
+            // 1. Add bond change
+            // Calculate previous bond energy
+            Atom previousCDelta = previousResidue.chis.get(2).atom3;
+            Atom previousN = previousResidue.N;
+            double previousDistance = Molecule.getDistance(previousCDelta, previousN);
+
+            double PROLINE_CDELTA_N_SPRING_CONSTANT = FixedSequenceOPLScalculator.PROLINE_CDELTA_N_SPRING_CONSTANT;
+            double PROLINE_CDELTA_N_BOND_LENGTH = FixedSequenceOPLScalculator.PROLINE_CDELTA_N_BOND_LENGTH;
+            double previousBondEnergy = PROLINE_CDELTA_N_SPRING_CONSTANT * Math.pow(previousDistance - PROLINE_CDELTA_N_BOND_LENGTH, 2);
+
+            double newDistance = Molecule.getDistance(CDelta, N);
+            double newBondEnergy =  PROLINE_CDELTA_N_SPRING_CONSTANT * Math.pow(newDistance - PROLINE_CDELTA_N_BOND_LENGTH, 2);
+            
+            double bondEnergyChange = newBondEnergy - previousBondEnergy;
+            System.out.println("The bond energy change is : " + bondEnergyChange);
+
+            energyChange += bondEnergyChange;
+
+            // Add angle changes
+            
+            // Build all angles with N-Cdelta-a or a-Cdelta-N
+            Set<Atom> connectedToCDelta = newConformation.getAdjacentAtoms(CDelta);
+            connectedToCDelta.remove(N);
             Set<Atom> connectedToN = newConformation.getAdjacentAtoms(N);
-            connectedToN.remove(CGamma);
+            connectedToN.remove(CDelta);
 
             Set<List<Integer>> anglesChanging = new HashSet<>();
 
-            // Add angles of N-Cgamma-a
-            for (Atom a : connectedToCGamma)
+            // 2. Add angles of N-Cdelta-a
+            for (Atom a : connectedToCDelta)
             {
                 List<Integer> angleIndices = new LinkedList<>();
                 angleIndices.add(newConformation.contents.indexOf(N));
-                angleIndices.add(newConformation.contents.indexOf(CGamma));
+                angleIndices.add(newConformation.contents.indexOf(CDelta));
                 angleIndices.add(newConformation.contents.indexOf(a));
 
                 anglesChanging.add(angleIndices);
             }
-            // Add angles of a-N-Cgamma
+            // Add angles of a-N-Cdelta
             for (Atom a : connectedToN)
             {
                 List<Integer> angleIndices = new LinkedList<>();
                 angleIndices.add(newConformation.contents.indexOf(a));
                 angleIndices.add(newConformation.contents.indexOf(N));
-                angleIndices.add(newConformation.contents.indexOf(CGamma));
+                angleIndices.add(newConformation.contents.indexOf(CDelta));
                 
                 anglesChanging.add(angleIndices);
             }
