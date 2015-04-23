@@ -31,13 +31,44 @@ public class FragmentGenerationOPLScalculator extends FixedSequenceOPLScalculato
         // Calculate total sidechain torsional energy 
         double tempTorsionalEnergy = 0.0;
         for (Residue r : startingPeptide.sequence)
-        {   
-           for (ProtoTorsion chi : r.chis)
-           {
-               Set<List<Integer>> sidechainTorsionIndices = getDihedralChanges(chi, startingPeptide);
-               for (List<Integer> torsionIndices : sidechainTorsionIndices)
-                   tempTorsionalEnergy += getDihedralEnergy(torsionIndices, startingPeptide);
+        {
+
+            for (ProtoTorsion chi : r.chis)
+            {
+                Set<List<Integer>> sidechainTorsionIndices = getDihedralChanges(chi, startingPeptide);
+                for (List<Integer> torsionIndices : sidechainTorsionIndices)
+                    tempTorsionalEnergy += getDihedralEnergy(torsionIndices, startingPeptide);
             }
+           
+            // If residue is proline, add chi 4 and its dependencies
+            if (r.aminoAcid.isProline())
+            {
+                // Atom 3 in chi 3 is the gamma carbon
+                Atom Cgamma = r.chis.get(2).atom3;
+                Atom N = r.N;
+
+                // First find all dependencies
+                // Get adjacent atoms not including a2 or a3 to make combinations of a-a2-a3-a
+                Set<Atom> connectedToAtom2 = startingPeptide.getAdjacentAtoms(Cgamma);
+                connectedToAtom2.remove(N);
+                Set<Atom> connectedToAtom3 = startingPeptide.getAdjacentAtoms(N);
+                connectedToAtom3.remove(Cgamma);
+                
+                for (Atom a1 : connectedToAtom2)
+                {
+                    for (Atom a4 : connectedToAtom3)
+                    {
+                        List<Integer> torsionIndices = new LinkedList<>();
+                        torsionIndices.add(startingPeptide.contents.indexOf(a1));
+                        torsionIndices.add(startingPeptide.contents.indexOf(Cgamma));
+                        torsionIndices.add(startingPeptide.contents.indexOf(N));
+                        torsionIndices.add(startingPeptide.contents.indexOf(a4));
+                        
+                        tempTorsionalEnergy += getDihedralEnergy(torsionIndices, startingPeptide);
+                    }
+                }
+            }
+
         }
 
         this.currentSidechainTorsionalEnergy = tempTorsionalEnergy;
@@ -79,6 +110,11 @@ public class FragmentGenerationOPLScalculator extends FixedSequenceOPLScalculato
         backboneTorsionIndices.addAll(getDihedralChanges(oldOmega, currentConformation));
         backboneTorsionIndices.addAll(getDihedralChanges(oldPsi, currentConformation));
         
+        List<List<Integer>> test = new LinkedList<>();
+        test.addAll(getDihedralChanges(oldPhi, currentConformation));
+        test.addAll(getDihedralChanges(oldOmega, currentConformation));
+        test.addAll(getDihedralChanges(oldPsi, currentConformation));
+
         // Call dihedral energy for each torsion that is changing
         for (List<Integer> torsionIndices : backboneTorsionIndices)
             energyChange += (getDihedralEnergy(torsionIndices,newConformation) - getDihedralEnergy(torsionIndices,currentConformation));  
@@ -91,24 +127,74 @@ public class FragmentGenerationOPLScalculator extends FixedSequenceOPLScalculato
         // Find energy change in all chis that are changed as a result of rotamer packing
         double newSidechainTorsionalEnergy = 0.0;
 
-        Set<List<Integer>> sidechainTorsionChanges = new HashSet<>();
-        
-       // for (Residue r : newConformation.sequence)
-       // {
-            for (ProtoTorsion chi : mutatedResidue.chis)
+        Set<List<Integer>> allTorsionChanges = backboneTorsionIndices;
+        for (Residue r : newConformation.sequence)
+        {
+            for (ProtoTorsion chi : r.chis)
             {
                 Set<List<Integer>> sidechainTorsionIndices = getDihedralChanges(chi, newConformation);
-                sidechainTorsionChanges.addAll(sidechainTorsionIndices);
                 for (List<Integer> torsionIndices : sidechainTorsionIndices)
                 {
-                    numberTorsionChanges++;
                     newSidechainTorsionalEnergy += getDihedralEnergy(torsionIndices, newConformation);
+                    if (r.equals(mutatedResidue))
+                    {
+                        numberTorsionChanges++;
+                        allTorsionChanges.add(torsionIndices);
+                        test.add(torsionIndices);
+                    }
                 }
             }
-       // }
+ 
+            // Proline correction
+            if (r.aminoAcid.isProline())
+            {
+                // Add additional torsion that are missing from list of side chain torsions
+                // chi 4 and its dependencies must be added
+                
+                // Atom 3 in chi 3 is the gamma carbon
+                Atom Cgamma = mutatedResidue.chis.get(2).atom3;
+                Atom N = mutatedResidue.N;
+
+                // First find all dependencies
+                // Get adjacent atoms not including a2 or a3 to make combinations of a-a2-a3-a
+                Set<Atom> connectedToAtom2 = newConformation.getAdjacentAtoms(Cgamma);
+                connectedToAtom2.remove(N);
+                Set<Atom> connectedToAtom3 = newConformation.getAdjacentAtoms(N);
+                connectedToAtom3.remove(Cgamma);
+                
+                for (Atom a1 : connectedToAtom2)
+                {
+                    for (Atom a4 : connectedToAtom3)
+                    {
+                        List<Integer> torsionIndices = new LinkedList<>();
+                        torsionIndices.add(newConformation.contents.indexOf(a1));
+                        torsionIndices.add(newConformation.contents.indexOf(Cgamma));
+                        torsionIndices.add(newConformation.contents.indexOf(N));
+                        torsionIndices.add(newConformation.contents.indexOf(a4));
+                        if (r.equals(mutatedResidue))
+                        {
+                            allTorsionChanges.add(torsionIndices);
+                            test.add(torsionIndices);
+                            numberTorsionChanges++;
+                        }
+                        newSidechainTorsionalEnergy += getDihedralEnergy(torsionIndices, newConformation);
+                    }
+                }
+            }
+
+        }
+
+        // Proline correction
+        if (mutatedResidue.aminoAcid.isProline())
+        {
+            // Add bond change
+
+            // Add angle changes
+        }
 
         System.out.println("Number of total torsion changes = " + numberTorsionChanges);
-        System.out.println(sidechainTorsionChanges);
+        for (List<Integer> indices : test)
+            System.out.printf("%d - %d - %d - %d\n", indices.get(0) + 1, indices.get(1) + 1, indices.get(2) + 1, indices.get(3) + 1);
 
         energyChange += (newSidechainTorsionalEnergy - currentSidechainTorsionalEnergy);
         
